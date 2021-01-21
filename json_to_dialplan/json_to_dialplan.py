@@ -1,4 +1,6 @@
 import json
+from generate_voice_files import GenerateVoiceFiles
+import asterisk.manager
 
 class Dialplan:
     def __init__(self, config_location, diagram_json):
@@ -21,13 +23,17 @@ class Dialplan:
         config_file.close()
 
     def create_ivr(self):
+        voice_files = GenerateVoiceFiles(self.diagram_json, "/var/lib/asterisk/sounds/voice")
+        voice_files.create_IVR_files()
         config_file = open(self.config_location, "a")
         config_file.write('[ivr]\n\n')
         for node in self.diagram_json["nodes"]:
             if("dialogs" in self.diagram_json["nodes"][node]):
                 config_file.write('exten => ' + node + ',1,Answer\n')
+                i = 0;
                 for dialog in self.diagram_json["nodes"][node]["dialogs"]:
-                    config_file.write('same => n,agi(googletts.agi,"' + dialog + '",en)\n')
+                    config_file.write('same => n,Playback(voice/' + node + str(i) + ')\n')
+                    i += 1;
                 #Change implementation - there should only ever be a max of one child and it should never be none.
                 if("children" in self.diagram_json["nodes"][node]):
                     child = self.diagram_json["nodes"][node]["children"][0]
@@ -36,12 +42,19 @@ class Dialplan:
                         config_file.write('same => n,Verbose(1, ${utterance})\n')
                         config_file.write('same => n,GotoIf($["${utterance}" = "yes"]?' + self.diagram_json["nodes"][child]["choices"][0] + ',1)\n')
                         config_file.write('same => n,GotoIf($["${utterance}" = "no"]?' + self.diagram_json["nodes"][child]["choices"][1] + ',1)\n')
-                        config_file.write('same => n,agi(googletts.agi,"Can you please repeat more clearly?", en)\n')
+                        config_file.write('same => n,Playback(voice/repeat)\n')
                         config_file.write('same => n,Goto(record' + node + ')\n\n')
                     else:
                         config_file.write('same => n,Goto(phones,100,1)\n')
                         config_file.write('same => n,Hangup\n\n')
         config_file.close()
+        manager = asterisk.manager.Manager()
+        manager.connect('192.168.1.239')
+        manager.login('max', '12345678')
+        manager.reload("dialplan")
+        response = manager.status()
+        print(response)
+        manager.close()
 
 
     def create_config(self):
