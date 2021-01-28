@@ -1,6 +1,7 @@
 import requests
 import json
 import getpass
+import copy
 
 class Simplified_Json:
     def __init__(self, diagram_json):
@@ -12,13 +13,18 @@ class Simplified_Json:
             nodes.append(node)
         return nodes
 
-    def get_steps(self, node):
-        steps = []
+    def get_step(self, node):
+        step = ""
         node_data = self.diagram_json["nodes"][node]["data"]
+        i = 0
         if("steps" in node_data):
+            i += 1
+            if(i > 1):
+                raise Exception("There are more than one step. Not allowed for IVR")
             for step in node_data["steps"]:
-                steps.append(step)
-        return steps
+                step = step
+
+        return step
 
     def get_dialogs(self, node):
         dialogs = []
@@ -26,7 +32,8 @@ class Simplified_Json:
         if("dialogs" in node_data):
             for dialog in node_data["dialogs"]:
                 if("content" in dialog):
-                    dialogs.append(dialog["content"])
+                    if dialog["content"]:
+                        dialogs.append(dialog["content"])
 
         return dialogs
 
@@ -36,19 +43,28 @@ class Simplified_Json:
         if("ports" in node_data):
             for port in node_data["ports"]:
                 if("target" in port):
-                    target_nodes.add(port["target"])
-
+                    child = port["target"]
+                    if(child == None):
+                        target_nodes.add(child)
+                    elif ("steps" in self.diagram_json["nodes"][child]["data"]):
+                        target_nodes.add(self.get_step(child))
+                    else:
+                        target_nodes.add(child)
         return target_nodes
 
     def get_choices(self, node):
-        node = self.diagram_json["nodes"][node]["data"]["steps"][0]
+        node = self.get_step(node)
         node_data = self.diagram_json["nodes"][node]["data"]
         choice_nodes = []
         if("choices" in node_data):
             if("ports" in node_data):
                 for port in node_data["ports"]:
                     if port["target"] != None:
-                        choice_nodes.append(port["target"])
+                        target = port["target"]
+                        if ("steps" in self.diagram_json["nodes"][target]["data"]):
+                            choice_nodes.append(self.get_step(port["target"]))
+                        else:
+                            choice_nodes.append(port["target"])
                 if(len(choice_nodes) != 2):
                     raise Exception("Only deal with choice commands with 2 options")
             if(node_data["choices"][0]["intent"] == "AMAZON.NoIntent"):
@@ -65,6 +81,43 @@ class Simplified_Json:
         else:
             return False
 
+    def reorder_nodes(self, simplified_json):
+        temp_map = copy.deepcopy(simplified_json)
+        nodes = simplified_json["nodes"]
+        for node in simplified_json["nodes"]:
+            temp_node = nodes[node]
+            if("children" in temp_node):
+                try:
+                    del temp_map["nodes"][temp_node["children"][0]]
+                except:
+                    pass
+            elif("choices" in temp_node):
+                for choice in temp_node["choices"]:
+                    try:
+                        del temp_map["nodes"][choice]
+                    except:
+                        pass
+
+        new_json = temp_map
+        first_node = next(iter(new_json["nodes"]))
+        curNode = first_node
+        choice_nodes = []
+        while("children" in nodes[curNode] or "choices" in nodes[curNode]):
+            if("children" in nodes[curNode] and nodes[curNode]["children"][0] != None):
+                curNode = nodes[curNode]["children"][0]
+            elif("choices" in nodes[curNode]):
+                choice_nodes.append(nodes[curNode]["choices"][1])
+                curNode = nodes[curNode]["choices"][0]
+            elif choice_nodes:
+                curNode = choice_nodes[-1]
+                del choice_nodes[-1]
+            else:
+                break
+            new_json["nodes"][curNode] = nodes[curNode]
+
+        return new_json
+
+
 # Issue if the output from a choice command is connected to an individual text on voiceflow instead of to the whole box (should fix this).
 # Likely fix is to swap so that the nodes in use in the simplified JSON will be the actual nodes containing dialog and the actual choice node.
 # This will require some refactoring.
@@ -73,32 +126,32 @@ class Simplified_Json:
         node_dict = {}
         node_dict["nodes"] = {}
         for node in nodes:
-            node_steps = self.get_steps(node)
+            node_step = self.get_step(node)
             choices = []
-            if(node_steps):
+            if(node_step):
                 choices = self.get_choices(node)
             if(not self.get_dialogs(node)):
-                if(not node_steps and not choices):
+                if(not node_step and not choices):
                     continue
             else:
                 continue
             dialogs = []
             children = set()
-            for step in node_steps:
-                if(not self.is_interaction(step)):
-                    dialogs.extend(self.get_dialogs(step))
-                    children = children | self.get_target_nodes(step)
+            if(not self.is_interaction(node_step)):
+                dialogs.extend(self.get_dialogs(node_step))
+                children = children | self.get_target_nodes(node_step)
             if(not dialogs and not choices):
                 continue
-            node_dict["nodes"][node] = {}
+            node_dict["nodes"][node_step] = {}
             if(dialogs):
-                node_dict["nodes"][node]["dialogs"] = dialogs
+                node_dict["nodes"][node_step]["dialogs"] = dialogs
             if(children):
-                node_dict["nodes"][node]["children"] = list(children)
+                node_dict["nodes"][node_step]["children"] = list(children)
             if(choices):
-                node_dict["nodes"][node]["choices"] = choices
+                node_dict["nodes"][node_step]["choices"] = choices
 
-        return node_dict
+        reordered_dict = self.reorder_nodes(node_dict)
+        return reordered_dict
 
 class Get_Voiceflow_Information:
     def __init__(self, email, password):
@@ -187,6 +240,29 @@ class Voiceflow_To_Json:
 
     def simplified_json(self):
         diagram_json = self.get_diagram_json()
+        json_object = Simplified_Json(diagram_json)
+        simplified_json = json_object.simplify_json()
+        return simplified_json
+
+class VoiceflowFileToJson():
+    def __init__(self, filepath):
+        self.filepath = filepath
+
+    def assign_json_dict(self):
+        with open(self.filepath) as file:
+            voiceflow_json = json.load(file)
+
+        return voiceflow_json
+
+    def decode_root_diagram(self, voiceflow_json):
+        root_diagram = voiceflow_json["version"]["rootDiagramID"]
+        diagram_json = voiceflow_json["diagrams"][root_diagram]
+        return diagram_json
+
+    def simplified_json(self):
+        voiceflow_json = self.assign_json_dict()
+        diagram_json = self.decode_root_diagram(voiceflow_json)
+
         json_object = Simplified_Json(diagram_json)
         simplified_json = json_object.simplify_json()
         return simplified_json
