@@ -1,5 +1,4 @@
 import sys
-import json
 
 from PyQt5.QtWidgets import QDialog
 from PyQt5.QtWidgets import QMainWindow
