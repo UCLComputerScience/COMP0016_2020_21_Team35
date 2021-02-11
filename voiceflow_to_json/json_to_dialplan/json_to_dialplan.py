@@ -1,4 +1,3 @@
-import json
 from json_to_dialplan.generate_voice_files import GenerateVoiceFiles
 import asterisk.manager
 
