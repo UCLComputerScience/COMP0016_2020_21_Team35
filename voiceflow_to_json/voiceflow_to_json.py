@@ -1,6 +1,5 @@
 import requests
 import json
-import getpass
 import copy
 
 class Simplified_Json:
@@ -56,6 +55,8 @@ class Simplified_Json:
         node = self.get_step(node)
         node_data = self.diagram_json["nodes"][node]["data"]
         choice_nodes = []
+        yes_choices = ["AMAZON.YesIntent", "5qs63onz"]
+        no_choices = ["AMAZON.NoIntent", "9qsu3opg"]
         if("choices" in node_data):
             if("ports" in node_data):
                 for port in node_data["ports"]:
@@ -67,11 +68,12 @@ class Simplified_Json:
                             choice_nodes.append(port["target"])
                 if(len(choice_nodes) != 2):
                     raise Exception("Only deal with choice commands with 2 options")
-            if(node_data["choices"][0]["intent"] == "AMAZON.NoIntent"):
+            if(node_data["choices"][0]["intent"] in no_choices):
                 choice_nodes[0], choice_nodes[1] = choice_nodes[1], choice_nodes[0]
-                if(node_data["choices"][1]["intent"] != "AMAZON.YesIntent"):
+                if(node_data["choices"][1]["intent"] not in yes_choices):
+                    print(node_data["choices"][1]["intent"])
                     raise Exception("Must have Yes and No options only for a choice")
-            elif(node_data["choices"][0]["intent"] != "AMAZON.YesIntent"):
+            elif(node_data["choices"][0]["intent"] not in yes_choices):
                 raise Exception("Must have Yes and No options only for a choice")
         return choice_nodes
 
@@ -101,20 +103,27 @@ class Simplified_Json:
         new_json = temp_map
         first_node = next(iter(new_json["nodes"]))
         curNode = first_node
+        lastNode = curNode
         choice_nodes = []
-        while("children" in nodes[curNode] or "choices" in nodes[curNode]):
-            if("children" in nodes[curNode] and nodes[curNode]["children"][0] != None):
+        while(nodes):
+            if(curNode in nodes and "children" in nodes[curNode] and nodes[curNode]["children"][0] != None):
                 curNode = nodes[curNode]["children"][0]
-            elif("choices" in nodes[curNode]):
+            elif(curNode in nodes and "choices" in nodes[curNode]):
                 choice_nodes.append(nodes[curNode]["choices"][1])
                 curNode = nodes[curNode]["choices"][0]
             elif choice_nodes:
                 curNode = choice_nodes[-1]
                 del choice_nodes[-1]
-            else:
-                break
-            new_json["nodes"][curNode] = nodes[curNode]
 
+            if(curNode in nodes):
+                print(nodes)
+                print(curNode)
+                print(lastNode)
+                new_json["nodes"][curNode] = nodes[curNode]
+                if(lastNode in nodes):
+                    del nodes[lastNode]
+                lastNode = curNode
+        print(new_json)
         return new_json
 
 
