@@ -1,5 +1,4 @@
 import os
-import json
 from picotts import PicoTTS
 import librosa
 import soundfile as sf
@@ -7,8 +6,8 @@ import soundfile as sf
 path = "/var/lib/asterisk/sounds/voice"
 class GenerateVoiceFiles:
     def __init__(self, diagram_json, asterisk_sound_path):
-        self.diagram_json = diagram_json;
-        self.asterisk_sound_path = asterisk_sound_path;
+        self.diagram_json = diagram_json
+        self.asterisk_sound_path = asterisk_sound_path
 
     def create_voice_directory(self):
         try:
@@ -16,6 +15,14 @@ class GenerateVoiceFiles:
                 os.makedirs(self.asterisk_sound_path)
         except:
             print("Creation of the directory %s failed" % self.asterisk_sound_path)
+
+    def delete_all_voice_files(self):
+        for file_name in os.listdir(self.asterisk_sound_path):
+            file_path = os.path.join(self.asterisk_sound_path, file_name)
+            try:
+                os.unlink(file_path)
+            except Exception as e:
+                print('Failed to delete %s. Reason: %s' % (file_path, e))
 
     def create_voice_file(self, voice_text, voice_type, file_path):
         picotts = PicoTTS()
@@ -29,6 +36,7 @@ class GenerateVoiceFiles:
 
     def create_IVR_files(self):
         self.create_voice_directory()
+        self.delete_all_voice_files()
         for node in self.diagram_json["nodes"]:
             if ("dialogs" in self.diagram_json["nodes"][node]):
                 i = 0;

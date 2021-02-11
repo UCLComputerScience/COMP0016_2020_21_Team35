@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import sys
 import warnings
 warnings.simplefilter("ignore", DeprecationWarning)
 warnings.simplefilter("ignore", UserWarning)
@@ -7,7 +8,6 @@ import librosa
 from scipy.signal import firwin, lfilter
 import numpy as np
 import math
-import sys
 import os
 import pysndfile
 import soundfile as sf
@@ -183,11 +183,11 @@ class AsteriskSpeechToText:
 
                 yes_result = 0
                 no_result = 0
-                audio = AudioFile(**config, kws="/var/lib/asterisk/agi-bin/yes_words.list")
+                audio = AudioFile(kws="/var/lib/asterisk/agi-bin/yes_words.list", **config)
                 for phrase in audio:
                         yes_result += 1
 
-                audio = AudioFile(**config, kws="/var/lib/asterisk/agi-bin/no_words.list")
+                audio = AudioFile(kws="/var/lib/asterisk/agi-bin/no_words.list", **config)
                 for phrase in audio:
                         no_result += 1
                 os.remove(File)
