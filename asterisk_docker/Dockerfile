@@ -13,6 +13,7 @@ RUN /bin/sh /tmp/build.sh
 
 COPY conf/asterisk-build/extensions.conf /etc/asterisk/
 COPY conf/asterisk-build/sip.conf /etc/asterisk/
+COPY conf/asterisk-build/manager.conf /etc/asterisk/
 COPY conf/asterisk-build/agi-bin /var/lib/asterisk/agi-bin/
 COPY conf/asterisk-build/voice /var/lib/asterisk/sounds/voice/
 
