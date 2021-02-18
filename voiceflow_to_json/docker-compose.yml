@@ -1,0 +1,27 @@
+version: '3.3'
+services:
+  asterisk:
+    container_name: asterisk
+    volumes:
+        - soundsVolume:/var/lib/asterisk/sounds/
+        - configVolume:/etc/asterisk/
+    network_mode: host
+    image: asterisk
+    command: bash -c
+             'chown -R :1024 /etc/asterisk &&
+             chown -R :1024 /var/lib/asterisk/sounds/voice &&
+             chmod -R 777 /var/lib/asterisk/sounds/voice &&
+             /bin/sh /start.sh'
+  voiceflow:
+      container_name: voiceflow
+      volumes:
+          - soundsVolume:/var/lib/asterisk/sounds/
+          - configVolume:/etc/asterisk/
+          - '/tmp/.X11-unix:/tmp/.X11-unix'
+      environment:
+          - DISPLAY=$DISPLAY
+      user: qtuser
+      image: voiceflow
+volumes:
+  soundsVolume:
+  configVolume:
