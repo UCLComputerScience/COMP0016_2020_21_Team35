@@ -4,7 +4,7 @@ minimal_apt_get_args='-y --no-install-recommends'
 
 SERVICE_PACKAGES="nano tar htop curl"
 LIBS_PACKAGES="libxml2-dev libjansson-dev libncurses5-dev libgsm1-dev libspeex-dev libspeexdsp-dev libssl-dev libsqlite3-dev libsndfile1 libsndfile-dev libpulse-dev libasound2-dev"
-BUILD_PACKAGES="wget subversion build-essential uuid-dev unixodbc-dev pkg-config"
+BUILD_PACKAGES="wget subversion build-essential uuid-dev unixodbc-dev pkg-config net-tools"
 RUN_PACKAGES="openssl sqlite3 fail2ban iptables python3-pip python3-dev swig"
 
 apt-get update -y
