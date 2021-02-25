@@ -100,31 +100,39 @@ class Simplified_Json:
                     except:
                         pass
 
-        new_json = temp_map
-        first_node = next(iter(new_json["nodes"]))
-        curNode = first_node
-        lastNode = curNode
-        choice_nodes = []
-        while(nodes):
-            if(curNode in nodes and "children" in nodes[curNode] and nodes[curNode]["children"][0] != None):
-                curNode = nodes[curNode]["children"][0]
-            elif(curNode in nodes and "choices" in nodes[curNode]):
-                choice_nodes.append(nodes[curNode]["choices"][1])
-                curNode = nodes[curNode]["choices"][0]
-            elif choice_nodes:
-                curNode = choice_nodes[-1]
-                del choice_nodes[-1]
+        first_node = next(iter(temp_map["nodes"]))
+        new_json = {"nodes": {}}
+        new_json["nodes"][first_node] = nodes[first_node]
+        for node in nodes:
+            if node == first_node:
+                continue
+            else:
+                new_json["nodes"][node] = nodes[node]
 
-            if(curNode in nodes):
-                print(nodes)
-                print(curNode)
-                print(lastNode)
-                new_json["nodes"][curNode] = nodes[curNode]
-                if(lastNode in nodes):
-                    del nodes[lastNode]
-                lastNode = curNode
-        print(new_json)
         return new_json
+        # curNode = first_node
+        # lastNode = curNode
+        # choice_nodes = []
+        # while(nodes):
+        #     if(curNode in nodes and "children" in nodes[curNode] and nodes[curNode]["children"][0] != None):
+        #         curNode = nodes[curNode]["children"][0]
+        #     elif(curNode in nodes and "choices" in nodes[curNode]):
+        #         choice_nodes.append(nodes[curNode]["choices"][1])
+        #         curNode = nodes[curNode]["choices"][0]
+        #     elif choice_nodes:
+        #         curNode = choice_nodes[-1]
+        #         del choice_nodes[-1]
+        #
+        #     if(curNode in nodes):
+        #         print(nodes)
+        #         print(curNode)
+        #         print(lastNode)
+        #         new_json["nodes"][curNode] = nodes[curNode]
+        #         if(lastNode in nodes):
+        #             del nodes[lastNode]
+        #         lastNode = curNode
+        # print(new_json)
+        # return new_json
 
 
 # Issue if the output from a choice command is connected to an individual text on voiceflow instead of to the whole box (should fix this).
