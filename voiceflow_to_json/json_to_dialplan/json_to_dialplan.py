@@ -1,5 +1,6 @@
 from json_to_dialplan.generate_voice_files import GenerateVoiceFiles
 import asterisk.manager
+import socket
 
 class Dialplan:
     def __init__(self, config_location, diagram_json):
@@ -43,12 +44,19 @@ class Dialplan:
                         config_file.write('same => n,GotoIf($["${GoogleUtterance}" = "no"]?' + self.diagram_json["nodes"][child]["choices"][1] + ',1)\n')
                         config_file.write('same => n,Playback(voice/repeat)\n')
                         config_file.write('same => n,Goto(record' + node + ')\n\n')
+                    elif child is not None:
+                        config_file.write('same => n,Goto(ivr,' + child + ',1)\n')
                     else:
                         config_file.write('same => n,Goto(phones,100,1)\n')
                         config_file.write('same => n,Hangup\n\n')
         config_file.close()
         manager = asterisk.manager.Manager()
-        manager.connect('192.168.1.239')
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        local_ip = s.getsockname()[0]
+        print(local_ip)
+        s.close()
+        manager.connect(local_ip)
         manager.login('max', '12345678')
         manager.command('dialplan reload')
         response = manager.status()
