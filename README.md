@@ -21,6 +21,6 @@ The members of the team are listed below:
 
 ## **Development Blog**
 
-You can access our development blog [here](/dev_blog/), which includes weekly update on our project. :wink:
+You can access our development blog [here](https://github.com/UCLComputerScience/COMP0016_2020_21_Team35/blob/project-website/dev_blog), which includes weekly update on our project. 
 
 **Edited by Chris Dai, 2020/10/16, Week 1**
