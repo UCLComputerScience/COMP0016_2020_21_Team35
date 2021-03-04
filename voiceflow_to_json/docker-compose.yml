@@ -7,6 +7,9 @@ services:
         - configVolume:/etc/asterisk/
     network_mode: host
     image: asterisk
+    ports:
+      - "5160:5160"
+      - "5060:5060"
     command: bash -c
              'chown -R :1024 /etc/asterisk &&
              chown -R :1024 /var/lib/asterisk/sounds/voice &&
