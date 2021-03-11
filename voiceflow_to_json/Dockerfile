@@ -7,6 +7,7 @@ ADD ./json_to_dialplan/generate_voice_files.py /tmp/json_to_dialplan/
 ADD ./json_to_dialplan/json_to_dialplan.py /tmp/json_to_dialplan/
 ADD ./UI.py /tmp
 ADD ./voiceflow_to_json.py /tmp
+ADD ./settings_to_pjsip.py /tmp
 
 # Install Python 3, PyQt5
 RUN apt-get update && apt-get install -y python3-pyqt5
