@@ -1,29 +1,23 @@
 from json_to_dialplan.generate_voice_files import GenerateVoiceFiles
 import asterisk.manager
 import socket
+import os
 
 class Dialplan:
     def __init__(self, config_location, diagram_json):
-        self.config_location = config_location
+        self.dirname = os.path.dirname(__file__)
+        self.config_location = os.path.join(self.dirname, config_location)
         self.diagram_json = diagram_json
 
     def create_incoming(self):
         config_file = open(self.config_location, "w")
-        config_file.write('[incoming]\n\n')
-        config_file.write('exten => 017123123,1,Goto(ivr,' + next(iter(self.diagram_json["nodes"])) + ',1)\n')
-        config_file.write('same => n,Hangup\n\n')
-        config_file.close()
-
-    def create_phones(self):
-        config_file = open(self.config_location, "a")
-        config_file.write('[phones]\n\n')
-        config_file.write('exten => 100,1,NoOp(Call for Max)\n')
-        config_file.write('same => n,Dial(SIP/max,5)\n')
+        config_file.write('[from-twilio]\n\n')
+        config_file.write('exten => _+44XXXXXXXXXX,1,Goto(ivr,' + next(iter(self.diagram_json["nodes"])) + ',1)\n')
         config_file.write('same => n,Hangup\n\n')
         config_file.close()
 
     def create_ivr(self):
-        voice_files = GenerateVoiceFiles(self.diagram_json, "/var/lib/asterisk/sounds/voice")
+        voice_files = GenerateVoiceFiles(self.diagram_json, os.path.join(self.dirname, '../../asterisk_docker/conf/asterisk-build/voice'))
         voice_files.create_IVR_files()
         config_file = open(self.config_location, "a")
         config_file.write('[ivr]\n\n')
@@ -45,10 +39,12 @@ class Dialplan:
                         config_file.write('same => n,Playback(voice/repeat)\n')
                         config_file.write('same => n,Goto(record' + node + ')\n\n')
                     elif child is not None:
-                        config_file.write('same => n,Goto(ivr,' + child + ',1)\n')
+                        config_file.write('same => n,Goto(ivr,' + child + ',1)\n\n')
                     else:
-                        config_file.write('same => n,Goto(phones,100,1)\n')
+                        # config_file.write('same => n,Goto(phones,100,1)\n')
+                        config_file.write(';goto\n')
                         config_file.write('same => n,Hangup\n\n')
+        config_file.write(';eof\n')
         config_file.close()
         manager = asterisk.manager.Manager()
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -66,7 +62,6 @@ class Dialplan:
 
     def create_config(self):
         self.create_incoming()
-        self.create_phones()
         self.create_ivr()
 
 # with open('/home/max/Documents/GP_IVR/voiceflow.json') as json_file:
