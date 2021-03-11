@@ -26,6 +26,7 @@ class AsteriskSpeechToText:
                 self.SHORT_NORMALISE = short_normalise
                 self.last_block = last_block
                 self.last_last_block = last_last_block
+                self.dirname = os.path.dirname(__file__)
 
         def open_asterisk_stream(self):
                 # File Descriptor delivery in Asterisk
@@ -177,17 +178,17 @@ class AsteriskSpeechToText:
                 config = {
                         'lm': False,
                         'audio_file': File,
-                        'hmm': "/var/lib/asterisk/agi-bin/cmusphinx-en-us-8khz-5.2",
+                        'hmm': "../../asterisk_docker/conf/asterisk-build/agi-bin/cmusphinx-en-us-8khz-5.2",
                         'dict': os.path.join(model_path, 'cmudict-en-us.dict')
                 }
 
                 yes_result = 0
                 no_result = 0
-                audio = AudioFile(kws="/var/lib/asterisk/agi-bin/yes_words.list", **config)
+                audio = AudioFile(kws="../../asterisk_docker/conf/asterisk-build/agi-bin/yes_words.list", **config)
                 for phrase in audio:
                         yes_result += 1
 
-                audio = AudioFile(kws="/var/lib/asterisk/agi-bin/no_words.list", **config)
+                audio = AudioFile(kws="../../asterisk_docker/conf/asterisk-build/agi-bin/no_words.list", **config)
                 for phrase in audio:
                         no_result += 1
                 os.remove(File)
@@ -220,7 +221,7 @@ class OutputYesNoResult:
                 self.last_last_block = last_last_block
 
         def output_result(self):
-                FileNameTmp = "/var/lib/asterisk/agi-bin/TmpSpeechFile.wav"
+                FileNameTmp = "../../asterisk_docker/conf/asterisk-build/agi-bin/TmpSpeechFile.wav"
                 stt = AsteriskSpeechToText(self.RAW_RATE, self.CHUNK, self.VOCAL_RANGE, self.THRESHOLD,
                                            self.TIMEOUT_SIGNAL, self.TIMEOUT_NO_SPEAKING, self.SHORT_NORMALISE,
                                            self.last_block, self.last_last_block)
