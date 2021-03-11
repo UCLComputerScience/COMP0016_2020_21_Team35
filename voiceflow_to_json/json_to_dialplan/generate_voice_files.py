@@ -3,11 +3,12 @@ from picotts import PicoTTS
 import librosa
 import soundfile as sf
 
-path = "/var/lib/asterisk/sounds/voice"
+# path = "../../asterisk_docker/conf/asterisk-build/voice"
 class GenerateVoiceFiles:
     def __init__(self, diagram_json, asterisk_sound_path):
+        self.dirname = os.path.dirname(__file__)
         self.diagram_json = diagram_json
-        self.asterisk_sound_path = asterisk_sound_path
+        self.asterisk_sound_path = os.path.join(self.dirname, asterisk_sound_path)
 
     def create_voice_directory(self):
         try:
@@ -41,10 +42,10 @@ class GenerateVoiceFiles:
             if ("dialogs" in self.diagram_json["nodes"][node]):
                 i = 0;
                 for dialog in self.diagram_json["nodes"][node]["dialogs"]:
-                    file_path = path + "/" + node + str(i) + ".wav"
+                    file_path = self.asterisk_sound_path + "/" + node + str(i) + ".wav"
                     self.create_voice_file(dialog, "en-GB", file_path)
                     i += 1;
-        self.create_voice_file("Can you please repeat more clearly?", "en-GB", path + "/repeat.wav")
+        self.create_voice_file("Can you please repeat more clearly?", "en-GB", self.asterisk_sound_path + "/repeat.wav")
 
 
 
