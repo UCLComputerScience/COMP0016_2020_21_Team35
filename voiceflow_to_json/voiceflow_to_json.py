@@ -224,6 +224,23 @@ class Get_Voiceflow_Information:
                 return workspace["id"]
 
 
+class GetVoiceflowSettings:
+    def __init__(self, simplified_json):
+        self.simplified_json = simplified_json
+
+    def get_redirect_texts(self):
+        redirect_texts = {}
+        for node in self.simplified_json["nodes"]:
+            if (not "children" in self.simplified_json["nodes"][node] or self.simplified_json["nodes"][node]["children"][0] == None) and not "choices" in self.simplified_json["nodes"][node]:
+                if "dialogs" in self.simplified_json["nodes"][node]:
+                    redirect_text = ""
+                    for dialog in self.simplified_json["nodes"][node]["dialogs"]:
+                        redirect_text += dialog
+                redirect_texts[node] = redirect_text
+        return redirect_texts
+
+
+
 class Voiceflow_To_Json:
     def __init__(self, workspace_name, project_name, headers):
         self.workspace_name = workspace_name
