@@ -3,7 +3,7 @@ import sys
 from PyQt5.QtWidgets import QDialog, QGroupBox, QMainWindow, QFormLayout, QLabel, QVBoxLayout, QHBoxLayout, QPushButton
 from PyQt5.QtWidgets import QComboBox, QWidget, QApplication, QAction, qApp, QButtonGroup, QFileDialog, QMessageBox, QLineEdit, QSizePolicy
 from PyQt5.QtCore import QSettings, Qt
-from PyQt5.QtGui import QIcon
+from PyQt5.QtGui import QIcon, QFont
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
@@ -32,20 +32,34 @@ class ProjectWindow(QDialog):
         self.layout = QVBoxLayout()
         self.form_layout = QFormLayout()
 
-        self.form_layout.addRow('Choose Workspace and Project:', QLabel())
+        heading_font = QFont('Arial', 12)
+        heading_font.setBold(True)
+
+        heading = QLabel("Choose Workspace and Project:")
+        heading.setFont(heading_font)
+        self.layout.addWidget(QLabel())
+        self.layout.addWidget(heading)
+
+        self.button_group = QGroupBox()
+        self.layout.addWidget(self.button_group)
+        self.v_box = QVBoxLayout()
+        self.button_group.setLayout(self.v_box)
+
         self.workspace_combo_box = QComboBox(self)
         self.projects_combo_box = QComboBox(self)
         self.set_projects()
         self.set_workspaces()
+        self.form_layout.addRow('', QLabel())
         self.form_layout.addRow('Workspace:', self.workspace_combo_box)
+        self.form_layout.addRow('', QLabel())
         self.form_layout.addRow('Projects:', self.projects_combo_box)
+        self.form_layout.addRow('', QLabel())
 
-        self.layout.addLayout(self.form_layout)
+        self.v_box.addLayout(self.form_layout)
 
         self.workspace_combo_box.addItem("Select")
         self.workspace_combo_box.addItems(self.workspace_names)
 
-        self.layout.addWidget(self.workspace_combo_box)
         self.create_ivr_button_layout = QHBoxLayout()
         self.create_ivr_button_layout.addWidget(QLabel())
         self.create_ivr_button = QPushButton('Get Config', self)
@@ -53,7 +67,7 @@ class ProjectWindow(QDialog):
 
         self.settings = QSettings("simplified_voiceflow", "GP_IVR_Settings")
 
-        self.layout.addLayout(self.create_ivr_button_layout)
+        self.v_box.addLayout(self.create_ivr_button_layout)
         self.setLayout(self.layout)
 
     def set_projects(self):
@@ -70,7 +84,7 @@ class ProjectWindow(QDialog):
         voiceflow_json = Voiceflow_To_Json(self.workspace_name, self.project_name, self.headers)
         simplified_json = voiceflow_json.simplified_json()
         self.settings.setValue("simplified json", simplified_json)
-        create_ivr = Dialplan("../../asterisk_docker/conf/asterisk-build/extensions.conf", simplified_json)
+        create_ivr = Dialplan("asterisk_docker/conf/asterisk-build/extensions.conf", simplified_json)
         create_ivr.create_config()
 
     def on_project_changed(self, value):
@@ -155,7 +169,7 @@ class ChooseVoiceflowFileWidget(QWidget):
         voiceflow_json = VoiceflowFileToJson(self.file_edit.text())
         simplified_json = voiceflow_json.simplified_json()
         self.settings.setValue("simplified json", simplified_json)
-        create_ivr = Dialplan("../../asterisk_docker/conf/asterisk-build/extensions.conf", simplified_json)
+        create_ivr = Dialplan("asterisk_docker/conf/asterisk-build/extensions.conf", simplified_json)
         create_ivr.create_config()
 
 
@@ -171,17 +185,37 @@ class LoginWidget(QWidget):
     def init_ui(self):
         self.layout = QVBoxLayout()
 
-        self.button_group = QGroupBox("Voiceflow Credentials:")
+        heading_font = QFont('Arial', 12)
+        heading_font.setBold(True)
+
+        heading = QLabel("Voiceflow Credentials:")
+        heading.setFont(heading_font)
+        self.layout.addWidget(QLabel())
+        self.layout.addWidget(heading)
+
+        self.button_group = QGroupBox()
         self.layout.addWidget(self.button_group)
         self.v_box = QVBoxLayout()
         self.button_group.setLayout(self.v_box)
 
         self.form_layout = QFormLayout()
+
+        self.email_layout = QHBoxLayout()
         self.email = QLineEdit()
+        self.email_layout.addWidget(QLabel())
+        self.email_layout.addWidget(self.email)
+        self.email.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+
+        self.password_layout = QHBoxLayout()
         self.password = QLineEdit()
+        self.password_layout.addWidget(QLabel())
+        self.password_layout.addWidget(self.password)
         self.password.setEchoMode(QLineEdit.Password)
-        self.form_layout.addRow('Email:', self.email)
-        self.form_layout.addRow('Password:', self.password)
+        self.password.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+
+        self.form_layout.addRow('', QLabel())
+        self.form_layout.addRow('Email:', self.email_layout)
+        self.form_layout.addRow('Password:', self.password_layout)
         self.form_layout.addRow('', QLabel())
         self.v_box.addLayout(self.form_layout)
 
@@ -217,17 +251,28 @@ class IvrGeneratorWidget(QWidget):
     def init_ui(self):
         self.layout = QVBoxLayout()
 
-        self.button_group = QGroupBox("Options:")
+        heading_font = QFont('Arial', 12)
+        heading_font.setBold(True)
+
+        heading = QLabel("Options:")
+        heading.setFont(heading_font)
+        self.layout.addWidget(QLabel())
+        self.layout.addWidget(heading)
+
+        self.button_group = QGroupBox()
         self.layout.addWidget(self.button_group)
         self.v_box = QVBoxLayout()
         self.button_group.setLayout(self.v_box)
         
         self.voiceflow_to_json_button = QPushButton('Use Voiceflow Login', self)
+        self.voiceflow_to_json_button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
         self.json_file_button = QPushButton('Use Downloaded Voiceflow File', self)
+        self.json_file_button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
 
 
-        self.v_box.addWidget(self.voiceflow_to_json_button, alignment=Qt.AlignCenter)
-        self.v_box.addWidget(self.json_file_button, alignment=Qt.AlignCenter)
+        self.v_box.addWidget(self.voiceflow_to_json_button)
+        self.v_box.addWidget(QLabel())
+        self.v_box.addWidget(self.json_file_button)
         self.setLayout(self.layout)
 
 class HomePageWidget(QWidget):
@@ -237,18 +282,38 @@ class HomePageWidget(QWidget):
 
     def init_ui(self):
         self.layout = QVBoxLayout()
-        self.generate_ivr_button = QPushButton('Generate IVR', self)
-        self.pstn_settings_button = QPushButton('PSTN Settings', self)
-        self.redirect_settings_button = QPushButton('Redirect Settings', self)
-        self.stats_button = QPushButton('Statistics', self)
-        self.button_group = QGroupBox("Options:")
+
+        heading_font = QFont('Arial', 14)
+        heading_font.setBold(True)
+
+        heading = QLabel("GP IVR")
+        heading.setFont(heading_font)
+        self.layout.addWidget(QLabel())
+        self.layout.addWidget(heading, alignment=Qt.AlignCenter)
+        self.layout.addWidget(QLabel())
+
+        self.button_group = QGroupBox()
         self.layout.addWidget(self.button_group)
         self.v_box = QVBoxLayout()
         self.button_group.setLayout(self.v_box)
-        self.v_box.addWidget(self.generate_ivr_button, alignment=Qt.AlignCenter)
-        self.v_box.addWidget(self.stats_button, alignment=Qt.AlignCenter)
-        self.v_box.addWidget(self.pstn_settings_button, alignment=Qt.AlignCenter)
-        self.v_box.addWidget(self.redirect_settings_button, alignment=Qt.AlignCenter)
+
+        self.generate_ivr_button = QPushButton('Generate IVR', self)
+        self.generate_ivr_button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+        self.pstn_settings_button = QPushButton('PSTN Settings', self)
+        self.pstn_settings_button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+        self.redirect_settings_button = QPushButton('Redirect Settings', self)
+        self.redirect_settings_button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+        self.stats_button = QPushButton('Statistics', self)
+        self.stats_button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+
+
+        self.v_box.addWidget(self.generate_ivr_button)
+        self.v_box.addWidget(QLabel())
+        self.v_box.addWidget(self.stats_button)
+        self.v_box.addWidget(QLabel())
+        self.v_box.addWidget(self.pstn_settings_button)
+        self.v_box.addWidget(QLabel())
+        self.v_box.addWidget(self.redirect_settings_button)
         self.setLayout(self.layout)
 
 class RedirectSettingsWidget(QWidget):
@@ -260,21 +325,27 @@ class RedirectSettingsWidget(QWidget):
         self.layout = QVBoxLayout()
         self.settings = QSettings("redirect_settings", "GP_IVR_Settings")
 
-        self.button_group = QGroupBox("Redirect Settings:")
-        self.layout.addWidget(self.button_group)
-        self.v_box = QVBoxLayout()
-        self.button_group.setLayout(self.v_box)
+        heading_font = QFont('Arial', 12)
+        heading_font.setBold(True)
 
-        self.redirects_form_layout = QFormLayout()
-        self.redirects_form_layout.addRow("", QLabel())
-        self.redirects_form_layout.addRow("", QLabel())
-        self.redirects_form_layout.addRow("Redirect Phone Numbers (UK Numbers Only - Don't Add Extension):", QLabel())
-        self.redirects_form_layout.addRow("", QLabel())
+        rules_font = QFont('Arial', 10)
+        rules_font.setItalic(True)
+
+        self.layout.addWidget(QLabel())
+        heading = QLabel("Redirect Phone Numbers:")
+        heading.setFont(heading_font)
+        self.layout.addWidget(heading)
+        uk_number_rules = QLabel("* UK Numbers Only")
+        uk_number_rules.setFont(rules_font)
+        self.layout.addWidget(uk_number_rules)
+        no_extension_rule = QLabel("* Don't add Extension")
+        no_extension_rule.setFont(rules_font)
+        self.layout.addWidget(no_extension_rule)
+
         self.voiceflow_settings = QSettings("simplified_voiceflow", "GP_IVR_Settings")
         self.redirect_numbers = {}
         self.setup_redirects_form()
         self.init_settings()
-        self.v_box.addLayout(self.redirects_form_layout)
 
         self.button_layout = QHBoxLayout()
         self.button_layout.addWidget(QLabel())
@@ -283,9 +354,8 @@ class RedirectSettingsWidget(QWidget):
         self.apply_settings_button = QPushButton("Apply")
         self.button_layout.addWidget(self.apply_settings_button)
 
-        self.v_box.addLayout(self.button_layout)
-
-        self.layout.addLayout(self.v_box)
+        self.layout.addWidget(QLabel())
+        self.layout.addLayout(self.button_layout)
 
         self.setLayout(self.layout)
 
@@ -302,9 +372,13 @@ class RedirectSettingsWidget(QWidget):
         voiceflow_settings = GetVoiceflowSettings(self.voiceflow_settings.value("simplified json"))
         redirect_texts = voiceflow_settings.get_redirect_texts()
         self.provider_number = QLineEdit()
-        self.redirects_form_layout.addRow("Provider Telephone Number:", self.provider_number)
+        self.button_group = QGroupBox()
+        self.layout.addWidget(self.button_group)
+        self.v_box = QHBoxLayout()
+        self.button_group.setLayout(self.v_box)
+        self.v_box.addWidget(QLabel("Provider Telephone Number:"))
+        self.v_box.addWidget(self.provider_number, alignment=Qt.AlignRight)
         for node in redirect_texts:
-            self.redirects_form_layout.addRow("", QLabel())
             self.add_redirects(redirect_texts[node], node)
 
     def add_redirects(self, redirect_text, redirect_node):
@@ -312,7 +386,12 @@ class RedirectSettingsWidget(QWidget):
         redirect_text.setWordWrap(True)
         redirect_text.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
         redirect_number = QLineEdit()
-        self.redirects_form_layout.addRow(redirect_text, redirect_number)
+        self.button_group = QGroupBox()
+        self.layout.addWidget(self.button_group)
+        self.v_box = QHBoxLayout()
+        self.button_group.setLayout(self.v_box)
+        self.v_box.addWidget(redirect_text)
+        self.v_box.addWidget(redirect_number, alignment=Qt.AlignRight)
         self.redirect_numbers[redirect_node] = redirect_number
 
     def apply_settings(self):
@@ -341,7 +420,7 @@ class RedirectSettingsWidget(QWidget):
 
             phone_numbers.append(self.redirect_numbers[node].text())
 
-        modify_dialplan = SettingsToDialplan("../asterisk_docker/conf/asterisk-build/extensions.conf", node_ids, phone_numbers, self.provider_number.text())
+        modify_dialplan = SettingsToDialplan("asterisk_docker/conf/asterisk-build/extensions.conf", node_ids, phone_numbers, self.provider_number.text())
         modify_dialplan.configure_dialplan()
 
     def save_settings(self):
@@ -358,7 +437,15 @@ class PstnSettingsWidget(QWidget):
         self.layout = QVBoxLayout()
         self.form_layout = QFormLayout()
 
-        self.button_group = QGroupBox("PSTN Settings:")
+        heading_font = QFont('Arial', 12)
+        heading_font.setBold(True)
+
+        heading = QLabel("PSTN Settings:")
+        heading.setFont(heading_font)
+        self.layout.addWidget(QLabel())
+        self.layout.addWidget(heading)
+
+        self.button_group = QGroupBox()
         self.layout.addWidget(self.button_group)
         self.v_box = QVBoxLayout()
         self.button_group.setLayout(self.v_box)
@@ -391,6 +478,7 @@ class PstnSettingsWidget(QWidget):
         self.apply_settings_button = QPushButton("Apply")
         self.button_layout.addWidget(self.apply_settings_button)
 
+        self.v_box.addWidget(QLabel())
         self.v_box.addLayout(self.button_layout)
 
         self.layout.addLayout(self.v_box)
@@ -437,7 +525,7 @@ class PstnSettingsWidget(QWidget):
 
         for ip_address in self.ip_addresses:
             ip_addresses.append(ip_address.text())
-        create_pjsip = SettingsToPjsip("../asterisk_docker/conf/asterisk-build/pjsip.conf", pjsip_port_text, self.provider_address.text(), provider_port_text, ip_addresses)
+        create_pjsip = SettingsToPjsip("asterisk_docker/conf/asterisk-build/pjsip.conf", pjsip_port_text, self.provider_address.text(), provider_port_text, ip_addresses)
         create_pjsip.create_config()
 
     def save_settings(self):
@@ -599,14 +687,14 @@ class ProgramUi(QMainWindow):
         self.home_page_setup()
 
     def home_page_setup(self):
-        self.resize(300, 350)
+        self.resize(400, 550)
         self.home_page = HomePageWidget()
         self.setCentralWidget(self.home_page)
         self.setWindowTitle("Home")
         self.home_page_events()
 
     def ivr_generator_setup(self):
-        self.resize(300, 350)
+        self.resize(400, 200)
         self.ivr_generator = IvrGeneratorWidget()
         self.setCentralWidget(self.ivr_generator)
         self.setWindowTitle("IVR Generation")
@@ -619,21 +707,21 @@ class ProgramUi(QMainWindow):
         self.setWindowTitle("Stats")
 
     def pstn_settings_setup(self):
-        self.resize(400, 400)
+        self.resize(550, 400)
         self.pstn_settings = PstnSettingsWidget()
         self.setCentralWidget(self.pstn_settings)
         self.setWindowTitle("PSTN Settings")
         self.pstn_settings_events()
 
     def redirect_settings_setup(self):
-        self.resize(600, 400)
+        self.resize(500, 400)
         self.redirect_settings = RedirectSettingsWidget()
         self.setCentralWidget(self.redirect_settings)
         self.setWindowTitle("Redirect Settings")
         self.redirect_settings_events()
 
     def login_setup(self):
-        self.resize(300, 150)
+        self.resize(400, 150)
         self.login = LoginWidget()
         self.setCentralWidget(self.login)
         self.setWindowTitle("Login")
@@ -647,7 +735,7 @@ class ProgramUi(QMainWindow):
         self.choose_voiceflow_file_events()
 
     def project_setup(self):
-        self.resize(300, 150)
+        self.resize(400, 150)
         if(self.login.project_window()):
             self.project = ProjectWindow(self.login.voiceflow_api, self.login.auth_token)
             self.setCentralWidget(self.project)
