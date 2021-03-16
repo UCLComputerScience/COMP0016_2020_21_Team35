@@ -2,13 +2,17 @@ import os
 from picotts import PicoTTS
 import librosa
 import soundfile as sf
+import sys
 
 # path = "../../asterisk_docker/conf/asterisk-build/voice"
 class GenerateVoiceFiles:
     def __init__(self, diagram_json, asterisk_sound_path):
-        self.dirname = os.path.dirname(__file__)
+        if getattr(sys, 'frozen', False):
+            self.application_path = os.path.dirname(sys.executable)
+        else:
+            self.application_path = os.path.dirname(__file__)
         self.diagram_json = diagram_json
-        self.asterisk_sound_path = os.path.join(self.dirname, asterisk_sound_path)
+        self.asterisk_sound_path = os.path.join(self.application_path, asterisk_sound_path)
 
     def create_voice_directory(self):
         try:
