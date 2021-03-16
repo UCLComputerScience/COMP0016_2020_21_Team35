@@ -5,12 +5,14 @@ from PyQt5.QtWidgets import QComboBox, QWidget, QApplication, QAction, qApp, QBu
 from PyQt5.QtCore import QSettings, Qt
 from PyQt5.QtGui import QIcon, QFont
 
+
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+from pathlib import Path
 
 
 from voiceflow_to_json import Get_Voiceflow_Information, Voiceflow_To_Json, VoiceflowFileToJson, GetVoiceflowSettings
@@ -18,6 +20,7 @@ from json_to_dialplan.json_to_dialplan import Dialplan
 from settings_to_pjsip import SettingsToPjsip
 from settings_to_dialplan import SettingsToDialplan
 from extract_data import return_daily_data, return_weekly_data
+from modify_voice_files import ModifyVoiceFiles
 
 
 class ProjectWindow(QDialog):
@@ -641,6 +644,121 @@ class StatsWidget(QWidget):
 
         self.canvas.draw()
 
+class AddVoiceFilesWidget(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.init_ui()
+
+    def init_ui(self):
+        self.layout = QVBoxLayout()
+        self.settings = QSettings("voice_file_settings", "GP_IVR_Settings")
+
+        self.browse_button_group = QButtonGroup(self)
+
+        heading_font = QFont('Arial', 12)
+        heading_font.setBold(True)
+
+        rules_font = QFont('Arial', 10)
+        rules_font.setItalic(True)
+
+        self.layout.addWidget(QLabel())
+        heading = QLabel("Add IVR Voice Files:")
+        heading.setFont(heading_font)
+        self.layout.addWidget(heading)
+        file_type_rule = QLabel("* Wav Files Only")
+        file_type_rule.setFont(rules_font)
+
+        self.voiceflow_settings = QSettings("simplified_voiceflow", "GP_IVR_Settings")
+        self.voice_files = {}
+        self.node_ids = []
+        self.setup_voice_files_form()
+        self.init_settings()
+
+        self.button_layout = QHBoxLayout()
+        self.button_layout.addWidget(QLabel())
+        self.button_layout.addWidget(QLabel())
+
+
+        self.apply_settings_button = QPushButton("Apply")
+        self.button_layout.addWidget(self.apply_settings_button)
+
+        self.layout.addWidget(QLabel())
+        self.layout.addLayout(self.button_layout)
+
+        self.setLayout(self.layout)
+
+    def init_settings(self):
+        for node in self.voice_files:
+            node_value = self.settings.value(node)
+            if node_value:
+                self.voice_files[node].setText(node_value)
+
+    def setup_voice_files_form(self):
+        voiceflow_settings = GetVoiceflowSettings(self.voiceflow_settings.value("simplified json"))
+        ivr_texts = voiceflow_settings.get_ivr_texts()
+        for node in ivr_texts:
+            self.add_voice_file_input(ivr_texts[node], node)
+
+    def add_voice_file_input(self, ivr_text, ivr_node):
+        ivr_text = QLabel(ivr_text)
+        ivr_text.setWordWrap(True)
+        ivr_text.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+        voice_file = FileEdit(self)
+
+        self.button_group = QGroupBox()
+        self.layout.addWidget(self.button_group)
+        self.v_box = QHBoxLayout()
+        self.button_group.setLayout(self.v_box)
+        browse_files_button = QPushButton("Browse", self)
+
+        self.v_box.addWidget(ivr_text)
+        self.v_box.addWidget(voice_file)
+        self.v_box.addWidget(browse_files_button)
+
+        self.voice_files[ivr_node] = voice_file
+        self.browse_button_group.addButton(browse_files_button)
+        self.node_ids.append(ivr_node)
+
+    def get_files(self, voice_file_edit):
+        filepath = QFileDialog.getOpenFileName(self, 'Single File', "~", '*.wav')
+        voice_file_edit.setText(filepath[0])
+
+    def apply_settings(self):
+        self.save_settings()
+        voice_file_paths = []
+        node_ids = []
+
+        for node in self.voice_files:
+            if self.voice_files[node]:
+                node_ids.append(node)
+
+            voice_file_path_text = self.voice_files[node].text()
+            voice_file_path = Path(voice_file_path_text)
+            if not voice_file_path.is_file():
+                if not voice_file_path_text:
+                    continue
+                msg = QMessageBox()
+                msg.setIcon(QMessageBox.Critical)
+                msg.setText("Error\n\nThe Path Specified is not a File")
+                msg.setWindowTitle("Error")
+                msg.exec_()
+                return
+
+            voice_file_paths.append(self.voice_files[node].text())
+
+        modify_voice_files = ModifyVoiceFiles("asterisk_docker/conf/asterisk-build/voice", node_ids, voice_file_paths)
+        modify_voice_files.replace_asterisk_voice_files()
+
+    def save_settings(self):
+        for node in self.voice_files:
+            if self.voice_files[node].text():
+                self.settings.setValue(node, self.voice_files[node].text())
+
+    def browse_files(self, button):
+        voice_file_index = - 2 - self.browse_button_group.id(button)
+        self.get_files(self.voice_files[self.node_ids[voice_file_index]])
+
+
 
 class ProgramUi(QMainWindow):
     """PyCalc's View (GUI)."""
@@ -669,7 +787,10 @@ class ProgramUi(QMainWindow):
         redirect_settings_action.triggered.connect(lambda: self.redirect_settings_setup())
 
         stats_action = QAction("Statistics", self)
-        stats_action.triggered.connect(lambda:self.stats_setup())
+        stats_action.triggered.connect(lambda: self.stats_setup())
+
+        add_voice_files_action = QAction("Add IVR Voice Files", self)
+        add_voice_files_action.triggered.connect(lambda: self.add_voice_files_setup())
 
 
         self.statusBar()
@@ -678,6 +799,7 @@ class ProgramUi(QMainWindow):
         fileMenu = menubar.addMenu('&Menu')
         fileMenu.addAction(home_page_action)
         fileMenu.addAction(login_action)
+        fileMenu.addAction(add_voice_files_action)
         fileMenu.addAction(stats_action)
         fileMenu.addAction(pstn_settings_action)
         fileMenu.addAction(redirect_settings_action)
@@ -699,6 +821,13 @@ class ProgramUi(QMainWindow):
         self.setCentralWidget(self.ivr_generator)
         self.setWindowTitle("IVR Generation")
         self.ivr_generator_events()
+
+    def add_voice_files_setup(self):
+        self.resize(400, 400)
+        self.add_voice_files = AddVoiceFilesWidget()
+        self.setCentralWidget(self.add_voice_files)
+        self.setWindowTitle("Add IVR Voice Files")
+        self.add_voice_files_events()
 
     def stats_setup(self):
         self.resize(800, 500)
@@ -756,6 +885,11 @@ class ProgramUi(QMainWindow):
     def ivr_generator_events(self):
         self.ivr_generator.voiceflow_to_json_button.clicked.connect(lambda: self.login_setup())
         self.ivr_generator.json_file_button.clicked.connect(lambda: self.choose_voiceflow_file_setup())
+
+    def add_voice_files_events(self):
+        self.add_voice_files.apply_settings_button.clicked.connect(lambda: self.add_voice_files.apply_settings())
+        self.add_voice_files.browse_button_group.buttonClicked.connect(self.add_voice_files.browse_files)
+        self.add_voice_files.apply_settings_button.clicked.connect(lambda: self.home_page_setup())
 
     def pstn_settings_events(self):
         self.pstn_settings.add_ip_address_button.clicked.connect(lambda: self.pstn_settings.add_ip_address())
