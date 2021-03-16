@@ -12,11 +12,14 @@ import os
 import pysndfile
 import soundfile as sf
 from pocketsphinx import AudioFile, get_model_path
+from threading import Thread
 
 
 class AsteriskSpeechToText:
         def __init__(self, raw_rate, chunk, vocal_range, threshold, timeout_signal,
                      timeout_no_speaking, short_normalise, last_block, last_last_block):
+                Thread.__init__(self)
+                self.daemon=True
                 self.RAW_RATE = raw_rate
                 self.CHUNK = chunk
                 self.VOCAL_RANGE = vocal_range
@@ -44,9 +47,9 @@ class AsteriskSpeechToText:
                         if line == '':
                                 break
                         key, data = line.split(':')
+                        if key == "agi_arg_1":
+                                self.agi_arg = data
                         if key[:4] == 'agi_':
-                                sys.stderr.write("Did not work!\n");
-                                sys.stderr.flush()
                                 continue
                         key = key.strip()
                         data = data.strip()
@@ -69,6 +72,12 @@ class AsteriskSpeechToText:
                 open(FileNameTmp, "w")
                 # making the file .wav
                 pysndfile.sndio.write(name=FileNameTmp, data=array, rate=self.RAW_RATE, format="wav", enc="pcm16")
+
+        def delete_audio_file(self, FileNameTmp):
+                if(os.path.exists(FileNameTmp)):
+                        os.remove(FileNameTmp)
+                else:
+                        print("The file " + FileNameTmp + " does not exist")
 
         def Filter(self, samps):
                 FC = 0.05 / (0.5 * self.RAW_RATE)
@@ -209,6 +218,8 @@ class AsteriskSpeechToText:
 class OutputYesNoResult:
         def __init__(self, raw_rate, chunk, vocal_range, threshold, timeout_signal,
                      timeout_no_speaking, short_normalise, last_block, last_last_block):
+                Thread.__init__(self)
+                self.daemon = True
                 self.RAW_RATE = raw_rate
                 self.CHUNK = chunk
                 self.VOCAL_RANGE = vocal_range
@@ -218,26 +229,28 @@ class OutputYesNoResult:
                 self.SHORT_NORMALISE = short_normalise
                 self.last_block = last_block
                 self.last_last_block = last_last_block
+                self.output_result()
 
         def output_result(self):
-                FileNameTmp = "/var/lib/asterisk/agi-bin/TmpSpeechFile.wav"
+                FileNameTmp = "/var/lib/asterisk/agi-bin/TmpSpeechFile"
                 stt = AsteriskSpeechToText(self.RAW_RATE, self.CHUNK, self.VOCAL_RANGE, self.THRESHOLD,
                                            self.TIMEOUT_SIGNAL, self.TIMEOUT_NO_SPEAKING, self.SHORT_NORMALISE,
                                            self.last_block, self.last_last_block)
                 file = stt.open_asterisk_stream()
                 env = stt.wait_to_start()
                 stt.write_output_debug(env)
-                stt.PlayStream("beep")
                 sys.stdout.flush()
                 stt.waiting_for_speech(file)
                 array = stt.RecordSpeech(file)
 
+                FileNameTmp = FileNameTmp + stt.agi_arg.split("/")[1] + ".wav"
                 stt.create_audio_file(FileNameTmp, array)
                 stt.send_speech(FileNameTmp)
+                stt.delete_audio_file(FileNameTmp)
 
 
 recogniser = OutputYesNoResult(8000, 1024, 75.0, 15, 160768, 16384, (1.0/32768.0), "", "")
-recogniser.output_result()
+
 
 
 
