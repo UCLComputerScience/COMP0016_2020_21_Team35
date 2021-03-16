@@ -2,11 +2,15 @@ from json_to_dialplan.generate_voice_files import GenerateVoiceFiles
 import asterisk.manager
 import socket
 import os
+import sys
 
 class Dialplan:
     def __init__(self, config_location, diagram_json):
-        self.dirname = os.path.dirname(__file__)
-        self.config_location = os.path.join(self.dirname, config_location)
+        if getattr(sys, 'frozen', False):
+            self.application_path = os.path.dirname(sys.executable)
+        else:
+            self.application_path = os.path.dirname(__file__)
+        self.config_location = os.path.join(self.application_path, config_location)
         self.diagram_json = diagram_json
 
     def create_incoming(self):
@@ -17,7 +21,7 @@ class Dialplan:
         config_file.close()
 
     def create_ivr(self):
-        voice_files = GenerateVoiceFiles(self.diagram_json, os.path.join(self.dirname, '../../asterisk_docker/conf/asterisk-build/voice'))
+        voice_files = GenerateVoiceFiles(self.diagram_json, os.path.join(self.application_path, 'asterisk_docker/conf/asterisk-build/voice'))
         voice_files.create_IVR_files()
         config_file = open(self.config_location, "a")
         config_file.write('[ivr]\n\n')
@@ -32,7 +36,7 @@ class Dialplan:
                 if("children" in self.diagram_json["nodes"][node]):
                     child = self.diagram_json["nodes"][node]["children"][0]
                     if(child is not None and "choices" in self.diagram_json["nodes"][child]):
-                        config_file.write('same => n(record' + node + '),EAGI(asterisk_speech_to_text.py)\n')
+                        config_file.write('same => n(record' + node + '),EAGI(asterisk_speech_to_text.py,${CHANNEL})\n')
                         config_file.write('same => n,Verbose(1, ${GoogleUtterance})\n')
                         config_file.write('same => n,GotoIf($["${GoogleUtterance}" = "yes"]?' + self.diagram_json["nodes"][child]["choices"][0] + ',1)\n')
                         config_file.write('same => n,GotoIf($["${GoogleUtterance}" = "no"]?' + self.diagram_json["nodes"][child]["choices"][1] + ',1)\n')
