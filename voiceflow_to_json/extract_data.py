@@ -2,10 +2,14 @@ import datetime
 from datetime import datetime, timedelta
 import numpy as np
 import os
+import sys
 
 OUTCOMES = 4
 
-dirname = os.path.dirname(__file__)
+if getattr(sys, 'frozen', False):
+    application_path = os.path.dirname(sys.executable)
+else:
+    application_path = os.path.dirname(__file__)
 
 def get_dates(days):
     date_today = datetime.today()
@@ -18,7 +22,7 @@ def get_dates(days):
 
 def get_daily_call_outcomes(dates, days):
     all_calls_outcome = [0] * days
-    config_location = os.path.join(dirname, "../asterisk_docker/conf/asterisk-build/Master.csv")
+    config_location = os.path.join(application_path, "asterisk_docker/conf/asterisk-build/Master.csv")
     f = open(config_location, "r")
     lines = f.readlines()
     d = 0
