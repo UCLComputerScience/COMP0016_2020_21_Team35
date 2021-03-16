@@ -1,11 +1,15 @@
 import asterisk.manager
 import socket
 import os
+import sys
 
 class SettingsToDialplan:
     def __init__(self, filepath, node_ids, phone_numbers, provider_number):
-        self.dirname = os.path.dirname(__file__)
-        self.filepath = os.path.join(self.dirname, filepath)
+        if getattr(sys, 'frozen', False):
+            self.application_path = os.path.dirname(sys.executable)
+        else:
+            self.application_path = os.path.dirname(__file__)
+        self.filepath = os.path.join(self.application_path, filepath)
         self.node_ids = node_ids
         self.phone_numbers = phone_numbers
         self.provider_number = provider_number
@@ -21,7 +25,7 @@ class SettingsToDialplan:
         for line in range(0, len(data)):
             if node_found:
                 if ';goto' in data[line]:
-                    data[line] = 'same => n,Goto(phones,' + str(number_extension) + ',1)\n'
+                    data[line] = 'same => n,Goto(from-phones,' + str(number_extension) + ',1)\n'
                     node_found = False
                     number_extension += 1
                     continue
