@@ -3,8 +3,9 @@ import json
 import copy
 
 class Simplified_Json:
-    def __init__(self, diagram_json):
+    def __init__(self, diagram_json, intents=None):
         self.diagram_json = diagram_json
+        self.intents = intents
 
     def get_nodes(self):
         nodes = []
@@ -55,8 +56,16 @@ class Simplified_Json:
         node = self.get_step(node)
         node_data = self.diagram_json["nodes"][node]["data"]
         choice_nodes = []
-        yes_choices = ["AMAZON.YesIntent", "5qs63onz"]
-        no_choices = ["AMAZON.NoIntent", "9qsu3opg"]
+        yes_choices = ["AMAZON.YesIntent"]
+        no_choices = ["AMAZON.NoIntent"]
+
+        if not self.intents == None:
+            for key in self.intents:
+                if "yes" in self.intents[key]:
+                    yes_choices.append(key)
+                elif "no" in self.intents[key]:
+                    no_choices.append(key)
+
         if("choices" in node_data):
             if("ports" in node_data):
                 for port in node_data["ports"]:
@@ -255,6 +264,17 @@ class Voiceflow_To_Json:
                     workspace_id = workspace["team_id"]
                     return workspace_id
 
+    def get_intents(self):
+        project_id = self.get_project_id()
+        hex_id = hex(int(project_id, 16) - 1)[2:]
+        project_id = str(hex_id)
+        VERSIONS_URL = "https://api.voiceflow.com/v2/versions/" + project_id
+        versions = requests.get(VERSIONS_URL, headers=self.headers).json()
+        intents = {}
+        for key in versions["platformData"]["intents"]:
+            intents[versions["intents"][key]["key"]] = versions["intents"][key]["name"]
+        return intents
+
     def get_project_id(self):
         workspace_id = self.get_workspace_id()
         PROJECT_URL = "https://api.voiceflow.com/v2/workspaces/" + workspace_id + "/projects"
@@ -274,7 +294,8 @@ class Voiceflow_To_Json:
 
     def simplified_json(self):
         diagram_json = self.get_diagram_json()
-        json_object = Simplified_Json(diagram_json)
+        intents = self.get_intents()
+        json_object = Simplified_Json(diagram_json, intents)
         simplified_json = json_object.simplify_json()
         return simplified_json
 
@@ -293,11 +314,20 @@ class VoiceflowFileToJson():
         diagram_json = voiceflow_json["diagrams"][root_diagram]
         return diagram_json
 
+    def get_intents(self, voiceflow_json):
+        intents = {}
+        json_intents = voiceflow_json["version"]["platformData"]["intents"]
+        for key in json_intents:
+            intents[key["key"]] = key["name"]
+        return intents
+
+
     def simplified_json(self):
         voiceflow_json = self.assign_json_dict()
         diagram_json = self.decode_root_diagram(voiceflow_json)
+        intents = self.get_intents(voiceflow_json)
 
-        json_object = Simplified_Json(diagram_json)
+        json_object = Simplified_Json(diagram_json, intents)
         simplified_json = json_object.simplify_json()
         return simplified_json
 
