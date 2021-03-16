@@ -2,11 +2,15 @@ from requests import get
 import asterisk.manager
 import socket
 import os
+import sys
 
 class SettingsToPjsip:
     def __init__(self, config_location, pjsip_port, provider_address, provider_port, provider_ip_addresses):
-        self.dirname = os.path.dirname(__file__)
-        self.config_location = os.path.join(self.dirname, config_location)
+        if getattr(sys, 'frozen', False):
+            self.application_path = os.path.dirname(sys.executable)
+        else:
+            self.application_path = os.path.dirname(__file__)
+        self.config_location = os.path.join(self.application_path, config_location)
         self.pjsip_port = pjsip_port
         self.provider_address = provider_address
         self.provider_port = provider_port
@@ -14,10 +18,11 @@ class SettingsToPjsip:
         self.config_file = open(self.config_location, "w")
 
     def create_transport_udp_nat(self):
-        self.config_file.write('[tansport-udp-nat]\n')
+        self.config_file.write('[transport-udp-nat]\n')
         self.config_file.write('type=transport\n')
         self.config_file.write('protocol=udp\n')
         self.config_file.write('bind=0.0.0.0:' + self.pjsip_port + '\n')
+        self.config_file.write('local_net=' + self.local_ip + '\n')
         public_ip = get('https://api.ipify.org').text
         self.config_file.write('external_media_address=' + public_ip + '\n')
         self.config_file.write('external_signaling_address=' + public_ip + '\n\n')
@@ -80,6 +85,10 @@ class SettingsToPjsip:
         self.config_file.write('[1001](aor-single-reg)')
 
     def create_config(self):
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        self.local_ip = s.getsockname()[0]
+        s.close()
         self.create_transport_udp_nat()
         self.create_trunk()
         self.create_auth_out()
@@ -92,13 +101,13 @@ class SettingsToPjsip:
         self.create_1001()
         self.config_file.close()
         manager = asterisk.manager.Manager()
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        local_ip = s.getsockname()[0]
-        s.close()
-        manager.connect(local_ip)
+        manager.connect(self.local_ip)
         manager.login('max', '12345678')
-        manager.command('pjsip reload')
-        response = manager.status()
-        print(response)
-        manager.close()
+        try:
+            manager.command('core restart now')
+        except:
+            pass
+        # manager.command('pjsip reload')
+        # response = manager.status()
+        # print(response)
+        # manager.close()
