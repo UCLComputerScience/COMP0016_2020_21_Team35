@@ -9,7 +9,7 @@ services:
         - ../asterisk_docker/conf/asterisk-build/modules.conf:/etc/asterisk/modules.conf
         - ../asterisk_docker/conf/asterisk-build/pjsip.conf:/etc/asterisk/pjsip.conf
         - ../asterisk_docker/conf/asterisk-build/Master.csv:/var/log/asterisk/cdr-csv/Master.csv
-#    network_mode: host
+    network_mode: host
     image: asterisk
     ports:
       - "5160:5160/udp"
