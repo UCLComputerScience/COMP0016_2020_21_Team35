@@ -1,6 +1,8 @@
 import sys
 import os
 import shutil
+import librosa
+import soundfile as sf
 
 class ModifyVoiceFiles:
     def __init__(self, asterisk_voice_filepath, node_ids, voice_file_paths):
@@ -22,7 +24,12 @@ class ModifyVoiceFiles:
         new_file_name = node_id + ".wav"
         new_file_path = os.path.join(os.path.dirname(voice_file_path), new_file_name)
         shutil.copyfile(voice_file_path, new_file_path)
+        self.change_voice_file_frequency(new_file_path)
         shutil.move(new_file_path, asterisk_voice_file_path)
+
+    def change_voice_file_frequency(self, voice_file_path):
+        y, s = librosa.load(voice_file_path, sr=8000)
+        sf.write(voice_file_path, y, s)
 
     def replace_asterisk_voice_files(self):
         for node in range(len(self.node_ids)):
