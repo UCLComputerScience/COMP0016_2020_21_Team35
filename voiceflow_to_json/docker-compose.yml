@@ -1,8 +1,7 @@
 version: '3.3'
 services:
   asterisk:
-    build: "./../asterisk_docker"
-    container_name: asterisk
+    container_name: 122max122/gp_ivr
     volumes:
         - ../asterisk_docker/conf/asterisk-build/voice:/var/lib/asterisk/sounds/voice/
         - ../asterisk_docker/conf/asterisk-build/extensions.conf:/etc/asterisk/extensions.conf
