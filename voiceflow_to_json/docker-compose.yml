@@ -1,0 +1,37 @@
+version: '3.3'
+services:
+  asterisk:
+    build: "./../asterisk_docker"
+    container_name: asterisk
+    volumes:
+        - ../asterisk_docker/conf/asterisk-build/voice:/var/lib/asterisk/sounds/voice/
+        - ../asterisk_docker/conf/asterisk-build/extensions.conf:/etc/asterisk/extensions.conf
+        - ../asterisk_docker/conf/asterisk-build/manager.conf:/etc/asterisk/manager.conf
+        - ../asterisk_docker/conf/asterisk-build/modules.conf:/etc/asterisk/modules.conf
+        - ../asterisk_docker/conf/asterisk-build/pjsip.conf:/etc/asterisk/pjsip.conf
+        - ../asterisk_docker/conf/asterisk-build/Master.csv:/var/log/asterisk/cdr-csv/Master.csv
+    network_mode: host
+    image: asterisk
+    ports:
+      - "5160:5160/udp"
+      - "5038:5038"
+    command: bash -c
+             'chown -R :1024 /etc/asterisk &&
+              chmod -R 777 /etc/asterisk &&
+             chown -R :1024 /var/lib/asterisk/sounds/voice &&
+             chmod -R 777 /var/lib/asterisk/sounds/voice &&
+             /bin/sh /start.sh'
+#  voiceflow:
+#      container_name: voiceflow
+#      volumes:
+#          - soundsVolume:/var/lib/asterisk/sounds/
+#          - configVolume:/etc/asterisk/
+#          - '/tmp/.X11-unix:/tmp/.X11-unix'
+#      network_mode: host
+#      environment:
+#          - DISPLAY=$DISPLAY
+#      user: qtuser
+#      image: voiceflow
+#volumes:
+#  soundsVolume:
+#  configVolume:
