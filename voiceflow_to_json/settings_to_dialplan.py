@@ -18,6 +18,7 @@ class SettingsToDialplan:
     def configure_dialplan(self):
         with open(self.filepath, 'r') as file:
             data = file.readlines()
+            file.close()
 
         node_iterator = 0
         node_found = False
@@ -60,7 +61,7 @@ class SettingsToDialplan:
         s.close()
         manager.connect(local_ip)
         manager.login('max', '12345678')
-        manager.command('pjsip reload')
+        manager.command('dialplan reload')
         response = manager.status()
         print(response)
         manager.close()
