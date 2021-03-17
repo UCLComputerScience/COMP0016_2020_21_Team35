@@ -44,11 +44,12 @@ class GenerateVoiceFiles:
         self.delete_all_voice_files()
         for node in self.diagram_json["nodes"]:
             if ("dialogs" in self.diagram_json["nodes"][node]):
-                i = 0;
+                node_text = ""
+                i = 0
                 for dialog in self.diagram_json["nodes"][node]["dialogs"]:
-                    file_path = self.asterisk_sound_path + "/" + node + str(i) + ".wav"
-                    self.create_voice_file(dialog, "en-GB", file_path)
-                    i += 1;
+                    node_text += dialog
+                file_path = self.asterisk_sound_path + "/" + node + ".wav"
+                self.create_voice_file(node_text, "en-GB", file_path)
         self.create_voice_file("Can you please repeat more clearly?", "en-GB", self.asterisk_sound_path + "/repeat.wav")
 
 

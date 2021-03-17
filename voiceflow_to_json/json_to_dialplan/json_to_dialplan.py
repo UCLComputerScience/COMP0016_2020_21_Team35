@@ -28,10 +28,8 @@ class Dialplan:
         for node in self.diagram_json["nodes"]:
             if("dialogs" in self.diagram_json["nodes"][node]):
                 config_file.write('exten => ' + node + ',1,Answer\n')
-                i = 0;
-                for dialog in self.diagram_json["nodes"][node]["dialogs"]:
-                    config_file.write('same => n,Playback(voice/' + node + str(i) + ')\n')
-                    i += 1;
+                config_file.write('same => n,Playback(voice/' + node + ')\n')
+
                 #Change implementation - there should only ever be a max of one child and it should never be none.
                 if("children" in self.diagram_json["nodes"][node]):
                     child = self.diagram_json["nodes"][node]["children"][0]
