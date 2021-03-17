@@ -6,14 +6,12 @@ from PyQt5.QtWidgets import QComboBox, QWidget, QApplication, QAction, qApp, QBu
 from PyQt5.QtCore import QSettings, Qt, QSize, QRect, QPoint
 from PyQt5.QtGui import QIcon, QFont, QPixmap
 
-
-
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
-
+import subprocess
 
 from voiceflow_to_json import Get_Voiceflow_Information, Voiceflow_To_Json, VoiceflowFileToJson, GetVoiceflowSettings
 from json_to_dialplan.json_to_dialplan import Dialplan
@@ -21,6 +19,8 @@ from settings_to_pjsip import SettingsToPjsip
 from settings_to_dialplan import SettingsToDialplan
 from extract_data import return_daily_data, return_weekly_data
 from modify_voice_files import ModifyVoiceFiles
+
+subprocess.run("sudo apt-get install libsndfile1-dev".split())
 
 if getattr(sys, 'frozen', False):
     application_path = os.path.dirname(sys.executable)
@@ -588,6 +588,13 @@ class RedirectSettingsWidget(QWidget):
     def setup_redirects_form(self):
         voiceflow_settings = GetVoiceflowSettings(self.voiceflow_settings.value("simplified json"))
         redirect_texts = voiceflow_settings.get_redirect_texts()
+        if redirect_texts == -1:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Critical)
+            msg.setText("Error\n\nYou have not set up an IVR")
+            msg.setWindowTitle("Error")
+            msg.exec_()
+            return
         self.provider_number = QLineEdit()
         self.provider_number.setToolTip("Enter the telephone number users should call to access your IVR - you must own this number")
         self.button_group = QGroupBox()
