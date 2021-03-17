@@ -239,6 +239,8 @@ class GetVoiceflowSettings:
 
     def get_redirect_texts(self):
         redirect_texts = {}
+        if self.simplified_json is None:
+            return -1
         for node in self.simplified_json["nodes"]:
 
             if (not "children" in self.simplified_json["nodes"][node] or self.simplified_json["nodes"][node]["children"][0] == None) and not "choices" in self.simplified_json["nodes"][node]:
