@@ -1,57 +1,141 @@
 import sys
-import json
+import os
 
-from PyQt5.QtWidgets import QApplication
-from PyQt5.QtWidgets import QDialog
-from PyQt5.QtWidgets import QDialogButtonBox
-from PyQt5.QtWidgets import QFormLayout
-from PyQt5.QtWidgets import QLineEdit
-from PyQt5.QtWidgets import QLabel
-from PyQt5.QtWidgets import QVBoxLayout
-from PyQt5.QtWidgets import QPushButton
-from PyQt5.QtWidgets import QErrorMessage
-from PyQt5.QtWidgets import QComboBox
+from PyQt5.QtWidgets import QDialog, QGroupBox, QMainWindow, QFormLayout, QLabel, QVBoxLayout, QHBoxLayout, QPushButton, QProxyStyle, QStyle
+from PyQt5.QtWidgets import QComboBox, QWidget, QApplication, QAction, qApp, QButtonGroup, QFileDialog, QMessageBox, QLineEdit, QSizePolicy, QScrollArea
+from PyQt5.QtCore import QSettings, Qt, QSize, QRect, QPoint
+from PyQt5.QtGui import QIcon, QFont, QPixmap
 
-from voiceflow_to_json import Voiceflow_To_Json
-from voiceflow_to_json import Get_Voiceflow_Information
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+import numpy as np
+import matplotlib.pyplot as plt
+from pathlib import Path
+import subprocess
 
-class Project_Window(QDialog):
+from voiceflow_to_json import Get_Voiceflow_Information, Voiceflow_To_Json, VoiceflowFileToJson, GetVoiceflowSettings
+from json_to_dialplan.json_to_dialplan import Dialplan
+from settings_to_pjsip import SettingsToPjsip
+from settings_to_dialplan import SettingsToDialplan
+from extract_data import return_daily_data, return_weekly_data
+from modify_voice_files import ModifyVoiceFiles
+
+subprocess.run("sudo apt-get install libsndfile1-dev".split())
+
+if getattr(sys, 'frozen', False):
+    application_path = os.path.dirname(sys.executable)
+else:
+    application_path = os.path.dirname(__file__)
+
+class BackButton:
+    def create_back_button(self):
+        back_button = QPushButton("Back")
+        back_icon = QIcon(os.path.join(application_path, "voiceflow_to_json/ui_assets/back_icon.png"))
+        back_button.setIcon(back_icon)
+        back_button.setIconSize(QSize(16, 16))
+        back_button.setToolTip("Go To Previous Page")
+
+        return back_button
+
+    def create_back_layout(self, back_button):
+        back_layout = QHBoxLayout()
+        back_layout.addWidget(back_button)
+        back_layout.addWidget(QLabel())
+        back_layout.addWidget(QLabel())
+        back_layout.addWidget(QLabel())
+
+        return back_layout
+
+
+class ProjectWindow(QDialog):
 
     def __init__(self, voiceflow_api, headers):
         super().__init__()
-        self.setWindowTitle("Project Selection")
-        self.dlgLayout = QVBoxLayout()
-        formLayout = QFormLayout()
-        formLayout.addRow('Choose Workspace and Project:', QLabel())
-        self.workspace_combo_box = QComboBox(self)
-        self.projects_combo_box = QComboBox(self)
-        formLayout.addRow('Workspace:', self.workspace_combo_box)
-        formLayout.addRow('Projects:', self.projects_combo_box)
-        self.dlgLayout.addLayout(formLayout)
         self.voiceflow_api = voiceflow_api
         self.headers = headers
-        self.workspaces = self.voiceflow_api.get_workspaces(headers)
+        self.init_ui()
+
+    def init_ui(self):
+        self.layout = QVBoxLayout()
+        self.form_layout = QFormLayout()
+
+        heading_font = QFont('Arial', 12)
+        heading_font.setBold(True)
+
+        heading = QLabel("Choose Workspace and Project:")
+        heading.setFont(heading_font)
+        self.layout.addWidget(QLabel())
+        self.layout.addWidget(heading)
+
+        page_info = QLabel("You can choose a Voiceflow project within a workspace to be used to generate your IVR")
+        self.layout.addWidget(page_info)
+        self.layout.addWidget(QLabel())
+
+        self.button_group = QGroupBox()
+        self.layout.addWidget(self.button_group)
+        self.v_box = QVBoxLayout()
+        self.button_group.setLayout(self.v_box)
+
+        self.workspace_combo_box = QComboBox(self)
+        self.workspace_combo_box.setToolTip("Choose the workspace where your project is located on Voiceflow")
+
+        self.projects_combo_box = QComboBox(self)
+        self.projects_combo_box.setToolTip("Choose the Voiceflow project to be transferred into an IVR")
+
+        self.set_projects()
+        self.set_workspaces()
+        self.form_layout.addRow('', QLabel())
+        self.form_layout.addRow('Workspace:', self.workspace_combo_box)
+        self.form_layout.addRow('', QLabel())
+        self.form_layout.addRow('Projects:', self.projects_combo_box)
+        grow_label = QLabel()
+        self.form_layout.addRow('', grow_label)
+        grow_label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+
+        self.v_box.addLayout(self.form_layout)
+
+        self.workspace_combo_box.addItem("Select")
+        self.workspace_combo_box.addItems(self.workspace_names)
+
+        self.create_ivr_button_layout = QHBoxLayout()
+        self.create_ivr_button = QPushButton('Get Config', self)
+        self.create_ivr_button.setToolTip("Replace current IVR with new one, generated by the Voiceflow project")
+
+        back_button_creator = BackButton()
+        self.back_button = back_button_creator.create_back_button()
+
+        self.create_ivr_button_layout.addWidget(self.back_button)
+        self.create_ivr_button_layout.addWidget(self.create_ivr_button)
+
+        self.settings = QSettings("simplified_voiceflow", "GP_IVR_Settings")
+
+        self.v_box.addLayout(self.create_ivr_button_layout)
+
+        self.setLayout(self.layout)
+
+    def set_projects(self):
         self.projects = []
         self.project_names = []
-        self.workspace_name = ""
         self.project_name = ""
-        workspace_names = self.voiceflow_api.get_workspace_names(self.workspaces)
-        self.workspace_combo_box.addItem("Select")
-        self.workspace_combo_box.addItems(workspace_names)
-        self.workspace_combo_box.currentTextChanged.connect(self.on_workspace_changed)
-        self.projects_combo_box.currentTextChanged.connect(self.on_project_changed)
-        self.dlgLayout.addWidget(self.workspace_combo_box)
-        get_json_button = QPushButton('Get Config', self)
-        get_json_button.clicked.connect(self.get_json)
-        self.dlgLayout.addWidget(get_json_button)
-        self.setLayout(self.dlgLayout)
 
-    def get_json(self):
+    def set_workspaces(self):
+        self.workspaces = self.voiceflow_api.get_workspaces(self.headers)
+        self.workspace_name = ""
+        self.workspace_names = self.voiceflow_api.get_workspace_names(self.workspaces)
+
+    def create_ivr(self):
+        if not self.project_name:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Critical)
+            msg.setText("Error\n\nYou have not chosen a project")
+            msg.setWindowTitle("Error")
+            msg.exec_()
+            return
         voiceflow_json = Voiceflow_To_Json(self.workspace_name, self.project_name, self.headers)
         simplified_json = voiceflow_json.simplified_json()
-        with open('/home/max/Documents/GP_IVR/voiceflow.json', 'w') as fp:
-             json.dump(simplified_json, fp)
-        self.close()
+        self.settings.setValue("simplified json", simplified_json)
+        create_ivr = Dialplan("asterisk_docker/conf/asterisk-build/extensions.conf", simplified_json)
+        create_ivr.create_config()
 
     def on_project_changed(self, value):
         self.project_name = value
@@ -65,46 +149,1165 @@ class Project_Window(QDialog):
         self.projects_combo_box.addItem("Select")
         self.projects_combo_box.addItems(project_names)
 
-class Login_Window(QDialog):
+class VfFileEdit(QLineEdit):
+    def __init__(self, parent):
+        super(VfFileEdit, self).__init__(parent)
+
+        self.setDragEnabled(True)
+
+    def dragEnterEvent(self, event):
+        data = event.mimeData()
+        urls = data.urls()
+        if urls and urls[0].scheme() == 'file':
+            event.acceptProposedAction()
+
+    def dragMoveEvent(self, event):
+        data = event.mimeData()
+        urls = data.urls()
+        if urls and urls[0].scheme() == 'file':
+            event.acceptProposedAction()
+
+    def dropEvent(self, event):
+        data = event.mimeData()
+        urls = data.urls()
+        if urls and urls[0].scheme() == 'file':
+            filepath = str(urls[0].path())
+            # Only accept voiceflow files
+            if filepath[-3:].lower() == ".vf":
+                self.setText(filepath)
+            else:
+                dialog = QMessageBox()
+                dialog.setWindowTitle("Error: Invalid File")
+                dialog.setText("Only .vf files are accepted")
+                dialog.setIcon(QMessageBox.Warning)
+                dialog.exec_()
+
+class WavFileEdit(QLineEdit):
+    def __init__(self, parent):
+        super(WavFileEdit, self).__init__(parent)
+
+        self.setDragEnabled(True)
+
+    def dragEnterEvent(self, event):
+        data = event.mimeData()
+        urls = data.urls()
+        if urls and urls[0].scheme() == 'file':
+            event.acceptProposedAction()
+
+    def dragMoveEvent(self, event):
+        data = event.mimeData()
+        urls = data.urls()
+        if urls and urls[0].scheme() == 'file':
+            event.acceptProposedAction()
+
+    def dropEvent(self, event):
+        data = event.mimeData()
+        urls = data.urls()
+        if urls and urls[0].scheme() == 'file':
+            filepath = str(urls[0].path())
+            # Only accept voiceflow files
+            if filepath[-4:].lower() == ".wav":
+                self.setText(filepath)
+            else:
+                dialog = QMessageBox()
+                dialog.setWindowTitle("Error: Invalid File")
+                dialog.setText("Only .wav files are accepted")
+                dialog.setIcon(QMessageBox.Warning)
+                dialog.exec_()
+
+class ChooseVoiceflowFileWidget(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.init_ui()
+
+    def init_ui(self):
+        self.layout = QVBoxLayout()
+        self.settings = QSettings("simplified_voiceflow", "GP_IVR_Settings")
+
+        heading_font = QFont('Arial', 12)
+        heading_font.setBold(True)
+
+        rule_font = QFont("Arial", 10)
+        rule_font.setItalic(True)
+
+        heading = QLabel("Add Voiceflow File:")
+        heading.setFont(heading_font)
+        page_info = QLabel("Upload a Voiceflow file to be transformed into an IVR.")
+        file_type_rule = QLabel("*File Type Must be .vf")
+
+        self.layout.addWidget(QLabel())
+        self.layout.addWidget(heading)
+        self.layout.addWidget(page_info)
+        self.layout.addWidget(file_type_rule)
+        self.layout.addWidget(QLabel())
+
+        self.button_group = QGroupBox("Drag and Drop File:")
+        self.layout.addWidget(self.button_group)
+        self.v_box = QVBoxLayout()
+        self.button_group.setLayout(self.v_box)
+
+        self.file_edit = VfFileEdit(self)
+        self.v_box.addWidget(self.file_edit)
+        grow_label = QLabel()
+        self.v_box.addWidget(grow_label)
+        grow_label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+        self.file_edit.setToolTip("Add a .vf file - use either 'Browse' or drag and drop")
+
+        self.button_layout = QHBoxLayout()
+        self.create_ivr_button = QPushButton("Create IVR", self)
+        self.browse_button = QPushButton("Browse", self)
+        self.browse_button.setToolTip("Browse file manager for .vf file")
+        self.create_ivr_button.setToolTip("Generate an IVR from Voiceflow file and replace your current IVR")
+
+        back_button_creator = BackButton()
+        self.back_button = back_button_creator.create_back_button()
+
+        self.button_layout.addWidget(self.back_button)
+        self.button_layout.addWidget(self.browse_button)
+        self.button_layout.addWidget(self.create_ivr_button)
+        self.v_box.addLayout(self.button_layout)
+
+        self.layout.addLayout(self.v_box)
+
+        self.setLayout(self.layout)
+
+    def get_files(self):
+        filepath = QFileDialog.getOpenFileName(self, 'Single File', "~", '*.vf')
+        self.file_edit.setText(filepath[0])
+
+    def create_ivr(self):
+        filepath = Path(self.file_edit.text())
+
+        if not filepath.is_file():
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Critical)
+            msg.setText("Error\n\nThe Path Specified is not a File")
+            msg.setWindowTitle("Error")
+            msg.exec_()
+            return
+        voiceflow_json = VoiceflowFileToJson(self.file_edit.text())
+        simplified_json = voiceflow_json.simplified_json()
+        self.settings.setValue("simplified json", simplified_json)
+        create_ivr = Dialplan("asterisk_docker/conf/asterisk-build/extensions.conf", simplified_json)
+        create_ivr.create_config()
+
+
+class LoginWidget(QWidget):
 
     """Dialog."""
 
     def __init__(self):
         """Initializer."""
         super().__init__()
-        self.setWindowTitle('Voiceflow Login')
-        self.dlgLayout = QVBoxLayout()
-        formLayout = QFormLayout()
-        formLayout.addRow('Voiceflow Credentials:', QLabel())
-        self.email = QLineEdit()
-        self.password = QLineEdit()
-        self.password.setEchoMode(QLineEdit.Password)
-        formLayout.addRow('Email:', self.email)
-        formLayout.addRow('Password:', self.password)
-        self.dlgLayout.addLayout(formLayout)
+        self.init_ui()
 
-        login_button = QPushButton('Login', self)
-        login_button.clicked.connect(self.project_window)
-        self.dlgLayout.addWidget(login_button)
-        self.setLayout(self.dlgLayout)
+    def init_ui(self):
+        self.layout = QVBoxLayout()
+
+        heading_font = QFont('Arial', 12)
+        heading_font.setBold(True)
+
+        heading = QLabel("Voiceflow Credentials:")
+        heading.setFont(heading_font)
+        self.layout.addWidget(QLabel())
+        self.layout.addWidget(heading)
+
+        page_info = QLabel("Enter your Voiceflow username and password.\nYou can then use a Voiceflow project to generate an IVR")
+
+        self.layout.addWidget(page_info)
+        self.layout.addWidget(QLabel())
+
+        self.button_group = QGroupBox()
+        self.layout.addWidget(self.button_group)
+        self.v_box = QVBoxLayout()
+        self.button_group.setLayout(self.v_box)
+
+        self.form_layout = QFormLayout()
+
+        self.email_layout = QHBoxLayout()
+        self.email = QLineEdit()
+        self.email_layout.addWidget(QLabel())
+        self.email_layout.addWidget(self.email)
+        self.email.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+        self.email.setToolTip("Enter your Voiceflow email")
+
+        self.password_layout = QHBoxLayout()
+        self.password = QLineEdit()
+        self.password_layout.addWidget(QLabel())
+        self.password_layout.addWidget(self.password)
+        self.password.setEchoMode(QLineEdit.Password)
+        self.password.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+        self.password.setToolTip("Enter your Voiceflow password")
+
+        self.form_layout.addRow('', QLabel())
+        self.form_layout.addRow('Email:', self.email_layout)
+        self.form_layout.addRow('Password:', self.password_layout)
+        self.form_layout.addRow('', QLabel())
+        self.v_box.addLayout(self.form_layout)
+
+        self.login_layout = QHBoxLayout()
+        self.login_button = QPushButton('Login', self)
+        self.login_button.setToolTip("Log in to Voiceflow and display projects to choose from")
+
+        back_button_creator = BackButton()
+        self.back_button = back_button_creator.create_back_button()
+
+        self.login_layout.addWidget(self.back_button)
+        self.login_layout.addWidget(self.login_button)
+        self.v_box.addLayout(self.login_layout)
+
+        self.layout.addLayout(self.v_box)
+        self.setLayout(self.layout)
+
 
     def project_window(self):
-        voiceflow_api = Get_Voiceflow_Information(email=self.email.text(), password=self.password.text())
-        auth_token = voiceflow_api.get_auth_header()
-        if auth_token == "None":
-            error_dialog = QErrorMessage()
-            error_dialog.showMessage('Voiceflow Credentials are Incorrect')
-            self.dlgLayout.addWidget(error_dialog)
-            self.setLayout(self.dlgLayout)
+        self.voiceflow_api = Get_Voiceflow_Information(email=self.email.text(), password=self.password.text())
+        self.auth_token = self.voiceflow_api.get_auth_header()
+        if self.auth_token == "None":
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Critical)
+            msg.setText("Error\n\nVoiceflow Credentials were Incorrect")
+            msg.setWindowTitle("Error")
+            msg.exec_()
+            return False
         else:
-            self.w = Project_Window(voiceflow_api, auth_token)
-            self.w.show()
-            self.hide()
+            return True
+
+class IvrGeneratorWidget(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.init_ui()
+
+    def init_ui(self):
+        self.layout = QVBoxLayout()
+
+        heading_font = QFont('Arial', 12)
+        heading_font.setBold(True)
+
+        heading = QLabel("Generate an IVR:")
+        heading.setFont(heading_font)
+
+        page_info1 = QLabel("Our IVR Generator allows you to either use your Voiceflow credentials \nor a downloaded Voiceflow file to generate an IVR.")
+        page_info2 = QLabel("Voice files are automatically generated but can be added individually.")
+
+        self.layout.addWidget(QLabel())
+        self.layout.addWidget(heading)
+        self.layout.addWidget(page_info1)
+        self.layout.addWidget(page_info2)
+        self.layout.addWidget(QLabel())
+
+        self.button_group = QGroupBox()
+        self.layout.addWidget(self.button_group)
+        self.v_box = QVBoxLayout()
+        self.button_group.setLayout(self.v_box)
+        
+        self.voiceflow_to_json_button = QPushButton('Use Voiceflow Login', self)
+        self.voiceflow_to_json_button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+        login_icon = QIcon(os.path.join(application_path, "voiceflow_to_json/ui_assets/login_icon.png"))
+        self.voiceflow_to_json_button.setIcon(login_icon)
+        self.voiceflow_to_json_button.setIconSize(QSize(64, 64))
+        self.voiceflow_to_json_button.setToolTip("Use This To: Login to Voiceflow and choose a project to turn into an IVR")
+
+        self.json_file_button = QPushButton('Use Downloaded Voiceflow File', self)
+        self.json_file_button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+        file_icon = QIcon(os.path.join(application_path, "voiceflow_to_json/ui_assets/file_icon.png"))
+        self.json_file_button.setIcon(file_icon)
+        self.json_file_button.setIconSize(QSize(64, 64))
+        self.json_file_button.setToolTip("Use This To: Upload a Voiceflow file to turn into and IVR")
+
+        self.add_voice_files_button = QPushButton("Add IVR Voice Files", self)
+        self.add_voice_files_button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+        wav_icon = QIcon(os.path.join(application_path, "voiceflow_to_json/ui_assets/wav_icon.png"))
+        self.add_voice_files_button.setIcon(wav_icon)
+        self.add_voice_files_button.setIconSize(QSize(64, 64))
+        self.add_voice_files_button.setToolTip("Use This To: Add your own WAV voice files to the IVR")
+
+        back_button_creator = BackButton()
+        self.back_button = back_button_creator.create_back_button()
+        back_layout = back_button_creator.create_back_layout(self.back_button)
+
+        self.v_box.addWidget(self.voiceflow_to_json_button)
+        self.v_box.addWidget(QLabel())
+        self.v_box.addWidget(self.json_file_button)
+        self.v_box.addWidget(QLabel())
+        self.v_box.addWidget(self.add_voice_files_button)
+        self.v_box.addWidget(QLabel())
+        self.v_box.addLayout(back_layout)
+
+        self.setLayout(self.layout)
+
+class HomePageWidget(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.init_ui()
+
+    def init_ui(self):
+        self.layout = QVBoxLayout()
+
+        header_layout = QHBoxLayout()
+
+        nhs_logo = QLabel()
+        pixmap = QPixmap(os.path.join(application_path, "voiceflow_to_json/ui_assets/IXNforNHS.png"))
+        pixmap = pixmap.scaled(170, 170, Qt.KeepAspectRatio)
+        nhs_logo.setPixmap(pixmap)
+
+        heading_font = QFont('Arial', 16)
+        heading_font.setBold(True)
+
+        sub_heading_font = QFont('Arial', 11)
+        sub_heading_font.setBold(True)
+
+        sub_heading = QLabel("Create an automated call triage for patients\nI(nteractive) V(oice) R(esponse)")
+        sub_heading.setFont(sub_heading_font)
+
+        heading = QLabel("GP IVR")
+        heading.setFont(heading_font)
+
+        header_layout.addWidget(nhs_logo)
+
+        heading_layout = QVBoxLayout()
+        heading_layout.addWidget(heading)
+        heading_layout.addWidget(sub_heading)
+
+        header_layout.addLayout(heading_layout)
+
+        visit_website = QLabel("*For any queries on how to use the program, please refer to the user manual on our website")
+
+        self.layout.addWidget(QLabel())
+        self.layout.addLayout(header_layout)
+        self.layout.addWidget(QLabel())
+        self.layout.addWidget(visit_website)
+        self.layout.addWidget(QLabel())
+
+        self.button_group = QGroupBox()
+        self.layout.addWidget(self.button_group)
+        self.v_box = QVBoxLayout()
+        self.button_group.setLayout(self.v_box)
+
+        self.generate_ivr_button = QPushButton('Generate IVR', self)
+        self.generate_ivr_button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+        ivr_icon = QIcon(os.path.join(application_path, "voiceflow_to_json/ui_assets/ivr_logo_icon.png"))
+        self.generate_ivr_button.setIcon(ivr_icon)
+        self.generate_ivr_button.setIconSize(QSize(64, 64))
+        self.generate_ivr_button.setToolTip("Use This To: Turn a Voiceflow file or project into an IVR")
+
+        self.stats_button = QPushButton('Analytics', self)
+        self.stats_button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+        analytics_icon = QIcon(os.path.join(application_path, "voiceflow_to_json/ui_assets/analytics_icon.png"))
+        self.stats_button.setIcon(analytics_icon)
+        self.stats_button.setIconSize(QSize(64, 64))
+        self.stats_button.setToolTip("Use This To: See Analytics about your currently running IVR")
+
+        self.pstn_settings_button = QPushButton('SIP Trunk Settings', self)
+        self.pstn_settings_button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+        pstn_settings_icon = QIcon(os.path.join(application_path, "voiceflow_to_json/ui_assets/pstn_settings_icon.png"))
+        self.pstn_settings_button.setIcon(pstn_settings_icon)
+        self.pstn_settings_button.setIconSize(QSize(64, 64))
+        self.pstn_settings_button.setToolTip("Use This To: Update your PSTN provider settings for your IVR (e.g. Twilio)")
+
+        self.redirect_settings_button = QPushButton('Redirect Settings', self)
+        self.redirect_settings_button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+        redirect_settings_icon = QIcon(os.path.join(application_path, "voiceflow_to_json/ui_assets/redirect_settings_icon.png"))
+        self.redirect_settings_button.setIcon(redirect_settings_icon)
+        self.redirect_settings_button.setIconSize(QSize(64, 64))
+        self.redirect_settings_button.setToolTip("Use This To: Update the numbers that users calling the IVR are redirected to")
+
+        self.v_box.addWidget(self.generate_ivr_button)
+        self.v_box.addWidget(QLabel())
+        self.v_box.addWidget(self.stats_button)
+        self.v_box.addWidget(QLabel())
+        self.v_box.addWidget(self.pstn_settings_button)
+        self.v_box.addWidget(QLabel())
+        self.v_box.addWidget(self.redirect_settings_button)
+        self.setLayout(self.layout)
+
+class RedirectSettingsWidget(QWidget):
+    def __init__(self, page):
+        super().__init__()
+        self.page = page
+        self.init_ui()
+
+    def init_ui(self):
+        self.layout = QVBoxLayout()
+        self.settings = QSettings("redirect_settings", "GP_IVR_Settings")
+
+        heading_font = QFont('Arial', 12)
+        heading_font.setBold(True)
+
+        rules_font = QFont('Arial', 10)
+        rules_font.setItalic(True)
+
+        self.layout.addWidget(QLabel())
+        heading = QLabel("Redirect Phone Numbers:")
+        heading.setFont(heading_font)
+        self.layout.addWidget(heading)
+
+        page_info = QLabel("Here you can change the phone numbers that users are redirected\nto after reaching particular message end-points in the IVR.\nIf you don't want a user redirected, leave the value blank.")
+        self.layout.addWidget(page_info)
+        self.layout.addWidget(QLabel())
+
+        uk_number_rules = QLabel("* UK Numbers Only")
+        uk_number_rules.setFont(rules_font)
+        self.layout.addWidget(uk_number_rules)
+        no_extension_rule = QLabel("* Don't add Extension")
+        no_extension_rule.setFont(rules_font)
+        self.layout.addWidget(no_extension_rule)
+
+        self.voiceflow_settings = QSettings("simplified_voiceflow", "GP_IVR_Settings")
+        self.redirect_numbers = {}
+        self.setup_redirects_form()
+        self.init_settings()
+
+        self.button_layout = QHBoxLayout()
+
+        if not self.page == "project":
+            back_button_creator = BackButton()
+            self.back_button = back_button_creator.create_back_button()
+            self.button_layout.addWidget(self.back_button)
+        else:
+            self.button_layout.addWidget(QLabel())
+
+        self.apply_settings_button = QPushButton("Apply")
+        self.apply_settings_button.setToolTip("Update telephone numbers that users calling the IVR are redirected to")
+        self.button_layout.addWidget(self.apply_settings_button)
+
+        self.layout.addWidget(QLabel())
+        self.layout.addLayout(self.button_layout)
+
+        self.setLayout(self.layout)
+
+    def init_settings(self):
+        provider_number = self.settings.value("provider number")
+        if provider_number:
+            self.provider_number.setText(provider_number)
+        for node in self.redirect_numbers:
+            node_value = self.settings.value(node)
+            if node_value:
+                self.redirect_numbers[node].setText(node_value)
+
+    def setup_redirects_form(self):
+        voiceflow_settings = GetVoiceflowSettings(self.voiceflow_settings.value("simplified json"))
+        redirect_texts = voiceflow_settings.get_redirect_texts()
+        if redirect_texts == -1:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Critical)
+            msg.setText("Error\n\nYou have not set up an IVR")
+            msg.setWindowTitle("Error")
+            msg.exec_()
+            return
+        self.provider_number = QLineEdit()
+        self.provider_number.setToolTip("Enter the telephone number users should call to access your IVR - you must own this number")
+        self.button_group = QGroupBox()
+        self.layout.addWidget(self.button_group)
+        self.v_box = QHBoxLayout()
+        self.button_group.setLayout(self.v_box)
+        self.v_box.addWidget(QLabel("Provider Telephone Number:"))
+        self.v_box.addWidget(self.provider_number, alignment=Qt.AlignRight)
+        for node in redirect_texts:
+            self.add_redirects(redirect_texts[node], node)
+
+    def add_redirects(self, redirect_text, redirect_node):
+        redirect_text = QLabel(redirect_text)
+        redirect_text.setWordWrap(True)
+        redirect_number = QLineEdit()
+        redirect_number.setToolTip("Enter a UK telephone number without extension")
+        self.button_group = QGroupBox()
+        self.layout.addWidget(self.button_group)
+        self.v_box = QHBoxLayout()
+        self.button_group.setLayout(self.v_box)
+        self.v_box.addWidget(redirect_text)
+        grow_label = QLabel()
+        self.v_box.addWidget(grow_label)
+        grow_label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+        self.v_box.addWidget(redirect_number, alignment=Qt.AlignRight)
+        self.redirect_numbers[redirect_node] = redirect_number
+
+    def apply_settings(self):
+        self.save_settings()
+        phone_numbers = []
+        node_ids = []
+
+        if not self.provider_number.text().isnumeric():
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Critical)
+            msg.setText("Error\n\nProvider Number is Not in Correct Format")
+            msg.setWindowTitle("Error")
+            msg.exec_()
+            return
+
+        for node in self.redirect_numbers:
+            node_ids.append(node)
+
+            if not self.redirect_numbers[node].text().isnumeric():
+                if not self.redirect_numbers[node].text():
+                    continue
+                msg = QMessageBox()
+                msg.setIcon(QMessageBox.Critical)
+                msg.setText("Error\n\nPhone Number is Not in Correct Format")
+                msg.setWindowTitle("Error")
+                msg.exec_()
+                return
+
+            phone_numbers.append(self.redirect_numbers[node].text())
+
+        modify_dialplan = SettingsToDialplan("asterisk_docker/conf/asterisk-build/extensions.conf", node_ids, phone_numbers, self.provider_number.text())
+        modify_dialplan.configure_dialplan()
+
+    def save_settings(self):
+        self.settings.clear()
+        self.settings.setValue("provider number", self.provider_number.text())
+        for node in self.redirect_numbers:
+            self.settings.setValue(node, self.redirect_numbers[node].text())
+
+class PstnSettingsWidget(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.init_ui()
+
+    def init_ui(self):
+        self.layout = QVBoxLayout()
+        self.form_layout = QFormLayout()
+
+        heading_font = QFont('Arial', 12)
+        heading_font.setBold(True)
+
+        heading = QLabel("SIP Trunk Settings:")
+        heading.setFont(heading_font)
+        self.layout.addWidget(QLabel())
+        self.layout.addWidget(heading)
+
+        page_info = QLabel("You can change your telephone service provider SIP trunk settings here.\nThese settings must be updated from the default before running an IVR.\nMake sure that you have created a SIP trunk with your telephone provider.")
+        self.layout.addWidget(page_info)
+        self.layout.addWidget(QLabel())
+
+        self.button_group = QGroupBox("Mandatory Fields are Marked with *")
+        self.layout.addWidget(self.button_group)
+        self.v_box = QVBoxLayout()
+        self.button_group.setLayout(self.v_box)
+
+        self.form_layout.addRow("", QLabel())
+
+        self.pjsip_port = QLineEdit()
+        self.pjsip_port.setToolTip("The port that your telephone provider will connect to the IVR with")
+        self.provider_address = QLineEdit()
+        self.provider_address.setToolTip("The SIP address that the IVR can contact the telephone provider through")
+        self.provider_port = QLineEdit()
+        self.provider_port.setToolTip("The port through which the telephone provider uses in communications")
 
 
-if __name__ == '__main__':
+        self.form_layout.addRow("Asterisk PJSIP Port (default is 5160):", self.pjsip_port)
+        self.form_layout.addRow("*Provider Contact Address:", self.provider_address)
+        self.form_layout.addRow("Provider Contact Port:", self.provider_port)
+        grow_label = QLabel()
+        self.form_layout.addRow("Provider Contact IP Addresses:", grow_label)
+        grow_label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+        self.v_box.addLayout(self.form_layout)
+
+        self.ip_form_layout = QFormLayout()
+        self.ip_addresses = []
+        self.delete_button_group = QButtonGroup(self)
+        self.delete_layouts = []
+        self.settings = QSettings("gp_ivr_settings", "GP_IVR_Settings")
+        self.v_box.addLayout(self.ip_form_layout)
+
+        self.init_settings()
+
+        self.button_layout = QHBoxLayout()
+
+        back_button_creator = BackButton()
+        self.back_button = back_button_creator.create_back_button()
+        self.button_layout.addWidget(self.back_button)
+
+        self.add_ip_address_button = QPushButton("Add IP Address", self)
+        self.add_ip_address_button.setToolTip("Add another contact IP address")
+        self.button_layout.addWidget(self.add_ip_address_button)
+
+        self.apply_settings_button = QPushButton("Apply")
+        self.apply_settings_button.setToolTip("Update Sip Trunk settings for contact between your IVR and telephone provider")
+        self.button_layout.addWidget(self.apply_settings_button)
+
+        self.v_box.addWidget(QLabel())
+        self.v_box.addLayout(self.button_layout)
+
+        self.setLayout(self.layout)
+
+    def init_settings(self):
+        self.pjsip_port.setText(self.settings.value("pjsip port"))
+        self.provider_address.setText(self.settings.value("provider contact address"))
+        self.provider_port.setText(self.settings.value("provider contact port"))
+        saved_ip_addresses = self.settings.value("provider ip addresses")
+
+        if saved_ip_addresses is not None:
+            new_ip_addresses = list(saved_ip_addresses.split(","))
+            del new_ip_addresses[-1]
+            for ip_address in new_ip_addresses:
+                self.add_ip_address(value=ip_address)
+
+    def add_ip_address(self, value=None):
+        layout = QHBoxLayout()
+        delete_ip_address_button = QPushButton("Delete", self)
+        delete_ip_address_button.setToolTip("Remove this contact IP address")
+        new_ip_address = QLineEdit()
+        new_ip_address.setToolTip("IP address that the telephone provider will contact the IVR with")
+        layout.addWidget(new_ip_address)
+        layout.addWidget(delete_ip_address_button)
+        if value is not None:
+            new_ip_address.setText(value)
+        self.ip_form_layout.addRow("IP Address " + str(len(self.ip_addresses)), layout)
+        self.ip_addresses.append(new_ip_address)
+        self.delete_button_group.addButton(delete_ip_address_button)
+
+    def apply_settings(self):
+        self.save_settings()
+        ip_addresses = []
+
+        if not self.pjsip_port.text():
+            pjsip_port_text = "5160"
+        else:
+            pjsip_port_text = self.pjsip_port.text()
+
+        if not self.provider_port.text():
+            provider_port_text = "5060"
+        else:
+            provider_port_text = self.provider_port.text()
+
+        for ip_address in self.ip_addresses:
+            ip_addresses.append(ip_address.text())
+        create_pjsip = SettingsToPjsip("asterisk_docker/conf/asterisk-build/pjsip.conf", pjsip_port_text, self.provider_address.text(), provider_port_text, ip_addresses)
+        create_pjsip.create_config()
+
+    def save_settings(self):
+        self.settings.setValue("pjsip port", self.pjsip_port.text())
+        self.settings.setValue("provider contact address", self.provider_address.text())
+        self.settings.setValue("provider contact port", self.provider_port.text())
+        ip_address_list = ""
+        for ip_address in self.ip_addresses:
+            ip_address_list += ip_address.text() + ","
+        if ip_address_list is not None:
+            self.settings.setValue("provider ip addresses", ip_address_list)
+
+    def delete_ip_address(self, button):
+        ip_index = - 2 - self.delete_button_group.id(button)
+        self.ip_form_layout.removeRow(ip_index)
+        del self.ip_addresses[ip_index]
+        for button in self.delete_button_group.buttons():
+            button_id = self.delete_button_group.id(button)
+            if(button_id < - 2 - ip_index):
+                self.delete_button_group.setId(button, button_id + 1)
+
+class StatsWidget(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.init_ui()
+
+    def init_ui(self):
+        self.figure = plt.figure()
+        self.canvas = FigureCanvas(self.figure)
+        self.toolbar = NavigationToolbar(self.canvas, self)
+
+        self.button1 = QPushButton('DAILY')
+        self.button2 = QPushButton('WEEKLY')
+        self.plot1()
+
+        self.button1.clicked.connect(self.plot1)
+        self.button2.clicked.connect(self.plot2)
+
+        main_layout = QVBoxLayout()
+        main_layout.addWidget(self.toolbar)
+        main_layout.addWidget(self.canvas)
+
+        sublayout = QHBoxLayout()
+        sublayout.addWidget(self.button1)
+        sublayout.addWidget(self.button2)
+
+        main_layout.addLayout(sublayout)
+
+        back_button_creator = BackButton()
+        self.back_button = back_button_creator.create_back_button()
+        back_layout = back_button_creator.create_back_layout(self.back_button)
+        main_layout.addLayout(back_layout)
+
+        self.setLayout(main_layout)
+
+    def plot1(self):
+        self.button1.setEnabled(False)
+        self.button2.setEnabled(True)
+        self.figure.clear()
+
+        ax = self.figure.add_subplot()
+
+        dates, outcomes = return_daily_data(10)
+
+        x = np.arange(len(dates))
+        width = 0.2
+
+        rects1 = ax.bar(x - 3 * width / 2, outcomes[0], width, label='Answered')
+        rects2 = ax.bar(x - width / 2, outcomes[1], width, label='No Answer')
+        rects3 = ax.bar(x + width / 2, outcomes[2], width, label='Busy')
+        rects4 = ax.bar(x + 3 * width / 2, outcomes[3], width, label='Failed')
+
+        ax.set_ylabel('Number of Calls')
+        ax.set_title('Calls Outcome')
+        ax.set_xticks(x)
+        ax.set_xticklabels(dates[:10])
+        ax.xaxis_date()
+        ax.legend()
+
+        self.figure.autofmt_xdate()
+
+        self.figure.tight_layout()
+
+        plt.grid(linestyle='--', linewidth=0.3)
+
+        self.canvas.draw()
+
+    def plot2(self):
+        self.button1.setEnabled(True)
+        self.button2.setEnabled(False)
+
+        self.figure.clear()
+
+        ax = self.figure.add_subplot()
+
+        dates, outcomes = return_weekly_data(6)
+
+        x = np.arange(len(dates))
+        width = 0.2
+
+        rects1 = ax.bar(x - 3 * width / 2, outcomes[0], width, label='Answered')
+        rects2 = ax.bar(x - width / 2, outcomes[1], width, label='No Answer')
+        rects3 = ax.bar(x + width / 2, outcomes[2], width, label='Busy')
+        rects4 = ax.bar(x + 3 * width / 2, outcomes[3], width, label='Failed')
+
+        ax.set_ylabel('Number of Calls')
+        ax.set_title('Calls Outcome')
+        ax.set_xticks(x)
+        ax.set_xticklabels(dates[:10])
+        ax.xaxis_date()
+        ax.legend()
+
+        self.figure.autofmt_xdate()
+
+        self.figure.tight_layout()
+
+        plt.grid(linestyle='--', linewidth=0.3)
+
+        self.canvas.draw()
+
+class AddVoiceFilesWidget(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.init_ui()
+
+    def init_ui(self):
+        self.layout = QVBoxLayout()
+        self.settings = QSettings("voice_file_settings", "GP_IVR_Settings")
+
+        self.browse_button_group = QButtonGroup(self)
+
+        heading_font = QFont('Arial', 12)
+        heading_font.setBold(True)
+
+        rules_font = QFont('Arial', 10)
+        rules_font.setItalic(True)
+
+        self.layout.addWidget(QLabel())
+        heading = QLabel("Add IVR Voice Files:")
+        heading.setFont(heading_font)
+
+        page_info = QLabel("You can add personal recorded voice files in place of the automatically\n generated voice files for each question in the IVR.")
+
+        file_type_rule = QLabel("* WAV Files Only")
+        file_type_rule.setFont(rules_font)
+
+        self.layout.addWidget(heading)
+        self.layout.addWidget(page_info)
+        self.layout.addWidget(file_type_rule)
+
+        self.voiceflow_settings = QSettings("simplified_voiceflow", "GP_IVR_Settings")
+        self.voice_files = {}
+        self.node_ids = []
+        self.setup_voice_files_form()
+        self.init_settings()
+
+        self.button_layout = QHBoxLayout()
+
+        back_button_creator = BackButton()
+        self.back_button = back_button_creator.create_back_button()
+        self.button_layout.addWidget(self.back_button)
+
+        self.apply_settings_button = QPushButton("Apply")
+        self.apply_settings_button.setToolTip("Replace IVR voice files with updated files")
+        self.button_layout.addWidget(self.apply_settings_button)
+
+        self.layout.addWidget(QLabel())
+        self.layout.addLayout(self.button_layout)
+
+        self.setLayout(self.layout)
+
+    def init_settings(self):
+        for node in self.voice_files:
+            node_value = self.settings.value(node)
+            if node_value:
+                self.voice_files[node].setText(node_value)
+
+    def setup_voice_files_form(self):
+        voiceflow_settings = GetVoiceflowSettings(self.voiceflow_settings.value("simplified json"))
+        ivr_texts = voiceflow_settings.get_ivr_texts()
+        for node in ivr_texts:
+            self.add_voice_file_input(ivr_texts[node], node)
+
+    def add_voice_file_input(self, ivr_text, ivr_node):
+        ivr_text = QLabel(ivr_text)
+        ivr_text.setWordWrap(True)
+        voice_file = WavFileEdit(self)
+
+        self.button_group = QGroupBox()
+        self.layout.addWidget(self.button_group)
+        self.v_box = QHBoxLayout()
+        self.button_group.setLayout(self.v_box)
+        browse_files_button = QPushButton("Browse", self)
+        browse_files_button.setToolTip("Browse file manager for WAV file")
+
+        self.v_box.addWidget(ivr_text)
+        grow_label = QLabel()
+        self.v_box.addWidget(grow_label)
+        grow_label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+        self.v_box.addWidget(voice_file)
+        self.v_box.addWidget(browse_files_button)
+
+        self.voice_files[ivr_node] = voice_file
+        self.browse_button_group.addButton(browse_files_button)
+        self.node_ids.append(ivr_node)
+
+    def get_files(self, voice_file_edit):
+        filepath = QFileDialog.getOpenFileName(self, 'Single File', "~", '*.wav')
+        voice_file_edit.setText(filepath[0])
+
+    def apply_settings(self):
+        self.save_settings()
+        voice_file_paths = []
+        node_ids = []
+
+        for node in self.voice_files:
+
+            voice_file_path_text = self.voice_files[node].text()
+            voice_file_path = Path(voice_file_path_text)
+
+            if not voice_file_path.is_file():
+                if not voice_file_path_text:
+                    continue
+                msg = QMessageBox()
+                msg.setIcon(QMessageBox.Critical)
+                msg.setText("Error\n\nThe Path Specified is not a File")
+                msg.setWindowTitle("Error")
+                msg.exec_()
+                return
+
+            node_ids.append(node)
+            voice_file_paths.append(self.voice_files[node].text())
+        if voice_file_paths:
+            modify_voice_files = ModifyVoiceFiles("asterisk_docker/conf/asterisk-build/voice", node_ids, voice_file_paths)
+            modify_voice_files.replace_asterisk_voice_files()
+
+    def save_settings(self):
+        self.settings.clear()
+        for node in self.voice_files:
+            if self.voice_files[node].text():
+                self.settings.setValue(node, self.voice_files[node].text())
+
+    def browse_files(self, button):
+        voice_file_index = - 2 - self.browse_button_group.id(button)
+        self.get_files(self.voice_files[self.node_ids[voice_file_index]])
+
+
+class ProxyStyle(QProxyStyle):
+    def drawControl(self, element, option, painter, widget=None):
+        if element == QStyle.CE_PushButtonLabel:
+            icon = QIcon(option.icon)
+            option.icon = QIcon()
+        super(ProxyStyle, self).drawControl(element, option, painter, widget)
+        if element == QStyle.CE_PushButtonLabel:
+            if not icon.isNull():
+                iconSpacing = 4
+                mode = (
+                    QIcon.Normal
+                    if option.state & QStyle.State_Enabled
+                    else QIcon.Disabled
+                )
+                if (
+                    mode == QIcon.Normal
+                    and option.state & QStyle.State_HasFocus
+                ):
+                    mode = QIcon.Active
+                state = QIcon.Off
+                if option.state & QStyle.State_On:
+                    state = QIcon.On
+                window = widget.window().windowHandle() if widget is not None else None
+                pixmap = icon.pixmap(window, option.iconSize, mode, state)
+                pixmapWidth = pixmap.width() / pixmap.devicePixelRatio()
+                pixmapHeight = pixmap.height() / pixmap.devicePixelRatio()
+                iconRect = QRect(
+                    QPoint(), QSize(pixmapWidth, pixmapHeight)
+                )
+                iconRect.moveCenter(option.rect.center())
+                iconRect.moveLeft(option.rect.left() + iconSpacing)
+                iconRect = self.visualRect(option.direction, option.rect, iconRect)
+                iconRect.translate(
+                    self.proxy().pixelMetric(
+                        QStyle.PM_ButtonShiftHorizontal, option, widget
+                    ),
+                    self.proxy().pixelMetric(
+                        QStyle.PM_ButtonShiftVertical, option, widget
+                    ),
+                )
+                painter.drawPixmap(iconRect, pixmap)
+
+class ProgramUi(QMainWindow):
+    """PyCalc's View (GUI)."""
+    def __init__(self):
+        """View initializer."""
+        super().__init__()
+        self.initUI()
+
+    def initUI(self):
+        exitAct = QAction(QIcon('exit.png'), '&Exit', self)
+        exitAct.setShortcut('Ctrl+Q')
+        exitAct.setStatusTip('Exit application')
+        exitAct.triggered.connect(qApp.quit)
+
+        home_page_action = QAction("Home Page", self)
+        home_page_action.triggered.connect(lambda: self.home_page_setup())
+
+        login_action = QAction("Generate IVR", self)
+        login_action.triggered.connect(lambda: self.ivr_generator_setup())
+
+        pstn_settings_action = QAction("SIP Trunk Settings", self)
+        pstn_settings_action.triggered.connect(lambda: self.pstn_settings_setup())
+
+        redirect_settings_action = QAction("Redirect Settings", self)
+        redirect_settings_action.triggered.connect(lambda: self.redirect_settings_setup("home"))
+
+        stats_action = QAction("Analytics", self)
+        stats_action.triggered.connect(lambda: self.stats_setup())
+
+        add_voice_files_action = QAction("Add IVR Voice Files", self)
+        add_voice_files_action.triggered.connect(lambda: self.add_voice_files_setup())
+
+        self.statusBar()
+
+        menubar = self.menuBar()
+        fileMenu = menubar.addMenu('&Menu')
+        fileMenu.addAction(home_page_action)
+        fileMenu.addAction(login_action)
+        fileMenu.addAction(add_voice_files_action)
+        fileMenu.addAction(stats_action)
+        fileMenu.addAction(pstn_settings_action)
+        fileMenu.addAction(redirect_settings_action)
+        fileMenu.addAction(exitAct)
+
+        self.setGeometry(200, 200, 200, 200)
+
+        self.home_page_setup()
+
+    def home_page_setup(self):
+        self.resize(400, 700)
+        self.home_page = HomePageWidget()
+        self.setCentralWidget(self.home_page)
+        self.setWindowTitle("Home")
+        self.home_page_events()
+
+    def ivr_generator_setup(self):
+        self.resize(600, 600)
+        self.ivr_generator = IvrGeneratorWidget()
+        self.setCentralWidget(self.ivr_generator)
+        self.setWindowTitle("IVR Generation")
+        self.ivr_generator_events()
+
+    def add_voice_files_setup(self):
+        self.resize(800, 700)
+        self.add_voice_files = AddVoiceFilesWidget()
+
+        self.add_voice_files_scroll = QScrollArea()
+        self.add_voice_files_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.add_voice_files_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.add_voice_files_scroll.setWidgetResizable(True)
+        self.add_voice_files_scroll.setWidget(self.add_voice_files)
+
+        self.setCentralWidget(self.add_voice_files_scroll)
+        self.setWindowTitle("Add IVR Voice Files")
+        self.add_voice_files_events()
+
+    def stats_setup(self):
+        self.resize(800, 600)
+        self.stats = StatsWidget()
+        self.setCentralWidget(self.stats)
+        self.setWindowTitle("Analytics")
+        self.stats_events()
+
+    def pstn_settings_setup(self):
+        self.resize(550, 450)
+        self.pstn_settings = PstnSettingsWidget()
+        self.setCentralWidget(self.pstn_settings)
+        self.setWindowTitle("Sip Trunk Settings")
+        self.pstn_settings_events()
+
+    def redirect_settings_setup(self, page):
+        self.resize(600, 500)
+        self.redirect_settings = RedirectSettingsWidget(page)
+
+        self.redirect_scroll = QScrollArea()
+        self.redirect_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.redirect_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.redirect_scroll.setWidgetResizable(True)
+        self.redirect_scroll.setWidget(self.redirect_settings)
+
+        self.setCentralWidget(self.redirect_scroll)
+        self.setWindowTitle("Redirect Settings")
+        self.redirect_settings_events()
+
+    def login_setup(self):
+        self.resize(500, 150)
+        self.login = LoginWidget()
+        self.setCentralWidget(self.login)
+        self.setWindowTitle("Login")
+        self.login_events()
+
+    def choose_voiceflow_file_setup(self):
+        self.resize(500, 200)
+        self.choose_voiceflow_file = ChooseVoiceflowFileWidget()
+        self.setCentralWidget(self.choose_voiceflow_file)
+        self.setWindowTitle("Choose Voiceflow File")
+        self.choose_voiceflow_file_events()
+
+    def project_setup(self):
+        self.resize(500, 150)
+        if(self.login.project_window()):
+            self.project = ProjectWindow(self.login.voiceflow_api, self.login.auth_token)
+            self.setCentralWidget(self.project)
+            self.setWindowTitle("Project Selection")
+            self.project_events()
+
+    def choose_voiceflow_file_events(self):
+        self.choose_voiceflow_file.browse_button.clicked.connect(lambda: self.choose_voiceflow_file.get_files())
+        self.choose_voiceflow_file.create_ivr_button.clicked.connect(lambda: self.choose_voiceflow_file.create_ivr())
+
+        self.choose_voiceflow_file.create_ivr_button.clicked.connect(lambda: self.choose_voiceflow_file.close())
+        self.choose_voiceflow_file.create_ivr_button.clicked.connect(lambda: self.resize(100, 100))
+        self.choose_voiceflow_file.create_ivr_button.clicked.connect(lambda: self.redirect_settings_setup("project"))
+
+        self.choose_voiceflow_file.back_button.clicked.connect(lambda: self.choose_voiceflow_file.close())
+        self.choose_voiceflow_file.back_button.clicked.connect(lambda: self.resize(100, 100))
+        self.choose_voiceflow_file.back_button.clicked.connect(lambda: self.ivr_generator_setup())
+
+    def home_page_events(self):
+        self.home_page.generate_ivr_button.clicked.connect(lambda: self.home_page.close())
+        self.home_page.generate_ivr_button.clicked.connect(lambda: self.resize(100, 100))
+        self.home_page.generate_ivr_button.clicked.connect(lambda: self.ivr_generator_setup())
+
+        self.home_page.pstn_settings_button.clicked.connect(lambda: self.home_page.close())
+        self.home_page.pstn_settings_button.clicked.connect(lambda: self.resize(100, 100))
+        self.home_page.pstn_settings_button.clicked.connect(lambda: self.pstn_settings_setup())
+
+        self.home_page.redirect_settings_button.clicked.connect(lambda: self.home_page.close())
+        self.home_page.redirect_settings_button.clicked.connect(lambda: self.resize(100, 100))
+        self.home_page.redirect_settings_button.clicked.connect(lambda: self.redirect_settings_setup("home"))
+
+        self.home_page.stats_button.clicked.connect(lambda: self.home_page.close())
+        self.home_page.stats_button.clicked.connect(lambda: self.resize(100, 100))
+        self.home_page.stats_button.clicked.connect(lambda: self.stats_setup())
+
+    def ivr_generator_events(self):
+        self.ivr_generator.voiceflow_to_json_button.clicked.connect(lambda: self.ivr_generator.close())
+        self.ivr_generator.voiceflow_to_json_button.clicked.connect(lambda: self.resize(100, 100))
+        self.ivr_generator.voiceflow_to_json_button.clicked.connect(lambda: self.login_setup())
+
+        self.ivr_generator.json_file_button.clicked.connect(lambda: self.ivr_generator.close())
+        self.ivr_generator.json_file_button.clicked.connect(lambda: self.resize(100, 100))
+        self.ivr_generator.json_file_button.clicked.connect(lambda: self.choose_voiceflow_file_setup())
+
+        self.ivr_generator.add_voice_files_button.clicked.connect(lambda: self.ivr_generator.close())
+        self.ivr_generator.add_voice_files_button.clicked.connect(lambda: self.resize(100, 100))
+        self.ivr_generator.add_voice_files_button.clicked.connect(lambda: self.add_voice_files_setup())
+
+        self.ivr_generator.back_button.clicked.connect(lambda: self.ivr_generator.close())
+        self.ivr_generator.back_button.clicked.connect(lambda: self.resize(100, 100))
+        self.ivr_generator.back_button.clicked.connect(lambda: self.home_page_setup())
+
+    def add_voice_files_events(self):
+        self.add_voice_files.apply_settings_button.clicked.connect(lambda: self.add_voice_files.apply_settings())
+        self.add_voice_files.browse_button_group.buttonClicked.connect(self.add_voice_files.browse_files)
+
+        self.add_voice_files.apply_settings_button.clicked.connect(lambda: self.add_voice_files.close())
+        self.add_voice_files.apply_settings_button.clicked.connect(lambda: self.resize(100, 100))
+        self.add_voice_files.apply_settings_button.clicked.connect(lambda: self.ivr_generator_setup())
+
+        self.add_voice_files.back_button.clicked.connect(lambda: self.add_voice_files.close())
+        self.add_voice_files.back_button.clicked.connect(lambda: self.resize(100, 100))
+        self.add_voice_files.back_button.clicked.connect(lambda: self.ivr_generator_setup())
+
+    def pstn_settings_events(self):
+        self.pstn_settings.add_ip_address_button.clicked.connect(lambda: self.pstn_settings.add_ip_address())
+        self.pstn_settings.apply_settings_button.clicked.connect(lambda: self.pstn_settings.apply_settings())
+        self.pstn_settings.delete_button_group.buttonClicked.connect(self.pstn_settings.delete_ip_address)
+
+        self.pstn_settings.apply_settings_button.clicked.connect(lambda: self.pstn_settings.close())
+        self.pstn_settings.apply_settings_button.clicked.connect(lambda: self.resize(100, 100))
+        self.pstn_settings.apply_settings_button.clicked.connect(lambda: self.home_page_setup())
+
+        self.pstn_settings.back_button.clicked.connect(lambda: self.pstn_settings.close())
+        self.pstn_settings.back_button.clicked.connect(lambda: self.resize(100, 100))
+        self.pstn_settings.back_button.clicked.connect(lambda: self.home_page_setup())
+
+    def redirect_settings_events(self):
+        self.redirect_settings.apply_settings_button.clicked.connect(lambda: self.redirect_settings.apply_settings())
+
+        self.redirect_settings.apply_settings_button.clicked.connect(lambda: self.redirect_settings.close())
+        self.redirect_settings.apply_settings_button.clicked.connect(lambda: self.resize(100, 100))
+        self.redirect_settings.apply_settings_button.clicked.connect(lambda: self.home_page_setup())
+
+        if not self.redirect_settings.page == "project":
+            self.redirect_settings.back_button.clicked.connect(lambda: self.redirect_settings.close())
+            self.redirect_settings.back_button.clicked.connect(lambda: self.resize(100, 100))
+            self.redirect_settings.back_button.clicked.connect(lambda: self.home_page_setup())
+
+    def login_events(self):
+        self.login.login_button.clicked.connect(lambda: self.project_setup())
+
+        self.login.back_button.clicked.connect(lambda: self.login.close())
+        self.login.back_button.clicked.connect(lambda: self.resize(100,100))
+        self.login.back_button.clicked.connect(lambda: self.ivr_generator_setup())
+
+
+    def project_events(self):
+        self.project.workspace_combo_box.currentTextChanged.connect(lambda: self.project.on_workspace_changed(self.project.workspace_combo_box.currentText()))
+        self.project.projects_combo_box.currentTextChanged.connect(lambda: self.project.on_project_changed(self.project.projects_combo_box.currentText()))
+        self.project.create_ivr_button.clicked.connect(lambda: self.project.create_ivr())
+
+        self.project.create_ivr_button.clicked.connect(lambda: self.project.close())
+        self.project.create_ivr_button.clicked.connect(lambda: self.resize(100, 100))
+        self.project.create_ivr_button.clicked.connect(lambda: self.redirect_settings_setup("project"))
+
+        self.project.back_button.clicked.connect(lambda: self.project.close())
+        self.project.back_button.clicked.connect(lambda: self.resize(100, 100))
+        self.project.back_button.clicked.connect(lambda: self.login_setup())
+
+    def stats_events(self):
+        self.stats.back_button.clicked.connect(lambda: self.stats.close())
+        self.stats.back_button.clicked.connect(lambda: self.resize(100, 100))
+        self.stats.back_button.clicked.connect(lambda: self.home_page_setup())
+
+
+
+def main():
+    """Main function."""
     app = QApplication(sys.argv)
-    dlg = Login_Window()
-    dlg.show()
+    app.setStyle('fusion')
+    proxy_style = ProxyStyle(app.style())
+    app.setStyle(proxy_style)
+    view = ProgramUi()
+    view.show()
     sys.exit(app.exec_())
 
+if __name__ == '__main__':
+    main()
