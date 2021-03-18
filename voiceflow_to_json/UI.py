@@ -21,6 +21,7 @@ from extract_data import return_daily_data, return_weekly_data
 from modify_voice_files import ModifyVoiceFiles
 
 subprocess.run("sudo apt-get install libsndfile1-dev".split())
+subprocess.run("sudo apt-get install libttspico-utils".split())
 
 if getattr(sys, 'frozen', False):
     application_path = os.path.dirname(sys.executable)
