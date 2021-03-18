@@ -44,7 +44,7 @@ class Dialplan:
                         config_file.write('same => n,Goto(ivr,' + child + ',1)\n\n')
                     else:
                         # config_file.write('same => n,Goto(phones,100,1)\n')
-                        config_file.write(';goto\n')
+                        config_file.write(';Goto\n')
                         config_file.write('same => n,Hangup\n\n')
         config_file.write(';eof\n')
         config_file.close()
