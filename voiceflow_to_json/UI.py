@@ -641,6 +641,7 @@ class RedirectSettingsWidget(QWidget):
 
             if not self.redirect_numbers[node].text().isnumeric():
                 if not self.redirect_numbers[node].text():
+                    phone_numbers.append("-1")
                     continue
                 msg = QMessageBox()
                 msg.setIcon(QMessageBox.Critical)
