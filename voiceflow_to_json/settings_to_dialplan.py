@@ -25,7 +25,7 @@ class SettingsToDialplan:
         number_extension = self.number_extension
         for line in range(0, len(data)):
             if node_found:
-                if ';goto' in data[line]:
+                if 'Goto' in data[line]:
                     data[line] = 'same => n,Goto(from-phones,' + str(number_extension) + ',1)\n'
                     node_found = False
                     number_extension += 1
@@ -38,7 +38,6 @@ class SettingsToDialplan:
                     continue
 
             if ';eof' in data[line]:
-                eof = True
                 if len(data) > line+1:
                     del data[line+1:]
                     break
@@ -49,8 +48,11 @@ class SettingsToDialplan:
             file.writelines(data)
             file.write('[from-phones]\n')
             while(number_extension  < last_number_extension):
-                file.write('exten => ' + str(number_extension) + ',1,Set(CALLERID(all)="GP Surgery" <44' + self.provider_number + '>)\n')
-                file.write('same => n,Dial(PJSIP/+44' + self.phone_numbers[number_extension - self.number_extension] + '@twilio0)\n\n')
+                if self.phone_numbers[number_extension - self.number_extension] == "-1":
+                    file.write('exten => ' + str(number_extension) + ',1,Hangup()\n\n')
+                else:
+                    file.write('exten => ' + str(number_extension) + ',1,Set(CALLERID(all)="GP Surgery" <44' + self.provider_number + '>)\n')
+                    file.write('same => n,Dial(PJSIP/+44' + self.phone_numbers[number_extension - self.number_extension] + '@twilio0)\n\n')
                 number_extension += 1
             file.close()
 
