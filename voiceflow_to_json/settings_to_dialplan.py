@@ -32,7 +32,7 @@ class SettingsToDialplan:
                     continue
 
             if(node_iterator < len(self.node_ids) and not node_found):
-                if self.node_ids[node_iterator] in data[line]:
+                if (self.node_ids[node_iterator] + ",1,Answer") in data[line]:
                     node_found = True
                     node_iterator += 1
                     continue
