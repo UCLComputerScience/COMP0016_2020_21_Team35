@@ -11,9 +11,9 @@ services:
         - ../asterisk_docker/conf/asterisk-build/pjsip.conf:/etc/asterisk/pjsip.conf
         - ../asterisk_docker/conf/asterisk-build/Master.csv:/var/log/asterisk/cdr-csv/Master.csv
     network_mode: host
-    ports:
-      - "5160:5160/udp"
-      - "5038:5038"
+#    ports:
+#      - "5160:5160/udp"
+#      - "5038:5038"
     command: bash -c
              'chown -R :1024 /etc/asterisk &&
               chmod -R 777 /etc/asterisk &&
