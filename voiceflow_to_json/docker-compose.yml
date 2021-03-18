@@ -1,7 +1,8 @@
 version: '3.3'
 services:
   asterisk:
-    container_name: 122max122/gp_ivr
+    container_name: gp_ivr
+    image: 122max122/gp_ivr:gp_ivr
     volumes:
         - ../asterisk_docker/conf/asterisk-build/voice:/var/lib/asterisk/sounds/voice/
         - ../asterisk_docker/conf/asterisk-build/extensions.conf:/etc/asterisk/extensions.conf
@@ -10,7 +11,6 @@ services:
         - ../asterisk_docker/conf/asterisk-build/pjsip.conf:/etc/asterisk/pjsip.conf
         - ../asterisk_docker/conf/asterisk-build/Master.csv:/var/log/asterisk/cdr-csv/Master.csv
     network_mode: host
-    image: asterisk
     ports:
       - "5160:5160/udp"
       - "5038:5038"
