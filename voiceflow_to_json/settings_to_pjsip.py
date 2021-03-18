@@ -75,20 +75,35 @@ class SettingsToPjsip:
 
     def modify_provider_ident(self, start):
         match_index = 0
-        for line in range(start, len(self.data)):
-            if line >= len(self.data):
-                break
+        line = start
+        while line < len(self.data):
+            # if line >= len(self.data):
+            #     break
             if "match" in self.data[line]:
                 if match_index == 0:
                     self.data[line] = ""
                     match_index = line
                 else:
                     del self.data[line]
+                    line -= 1
             elif not match_index == 0:
                 break
+            line += 1
 
-        for ip_address in self.provider_ip_addresses:
-            self.data[match_index] += 'match=' + ip_address + '\n'
+        if not match_index == 0:
+            for ip_address in self.provider_ip_addresses:
+                self.data[match_index] += 'match=' + ip_address + '\n'
+        else:
+            i = 0
+            for ip_address in self.provider_ip_addresses:
+                if i == 0:
+                    if not self.data[-1].strip():
+                        self.data[-1] += 'match=' + ip_address + '\n'
+                    else:
+                        self.data.append('match=' + ip_address + '\n')
+                    i += 1
+                else:
+                    self.data[-1] += 'match=' + ip_address + '\n'
 
         # self.config_file.write('[twilio0-ident]\n')
         # self.config_file.write('type=identify\n')
