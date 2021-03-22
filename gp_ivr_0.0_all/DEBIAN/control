@@ -1,0 +1,8 @@
+Package: gp-ivr
+Version: 0.0
+Architecture: all
+Essential: no
+Priority: optional
+Depends:libsndfile1-dev,libttspico-utils,libgl1-mesa-glx
+Maintainer: Max Wilson-Hebben
+Description: This is an IVR creation and modification tool that works with Voiceflow integration. It has been made specifically with GP call queues in mind.
