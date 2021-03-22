@@ -3,6 +3,7 @@ import asterisk.manager
 import socket
 import os
 import sys
+import voiceflow_to_json.constants.asterisk_filepath_constants as asterisk_constants
 
 class Dialplan:
     def __init__(self, config_location, diagram_json):
@@ -21,7 +22,7 @@ class Dialplan:
         config_file.close()
 
     def create_ivr(self):
-        voice_files = GenerateVoiceFiles(self.diagram_json, os.path.join(self.application_path, 'asterisk_docker/conf/asterisk-build/voice'))
+        voice_files = GenerateVoiceFiles(self.diagram_json, os.path.join(self.application_path, asterisk_constants.VOICE_FILE_PATH))
         voice_files.create_IVR_files()
         config_file = open(self.config_location, "a")
         config_file.write('[ivr]\n\n')
@@ -48,6 +49,9 @@ class Dialplan:
                         config_file.write('same => n,Hangup\n\n')
         config_file.write(';eof\n')
         config_file.close()
+
+
+    def reload_dialplan(self):
         manager = asterisk.manager.Manager()
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 80))
@@ -65,6 +69,7 @@ class Dialplan:
     def create_config(self):
         self.create_incoming()
         self.create_ivr()
+        self.reload_dialplan()
 
 # with open('/home/max/Documents/GP_IVR/voiceflow.json') as json_file:
 #     test_json = json.load(json_file)
