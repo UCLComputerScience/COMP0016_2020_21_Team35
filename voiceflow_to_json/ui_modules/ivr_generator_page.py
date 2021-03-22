@@ -25,6 +25,8 @@ class IvrGeneratorWidget(QWidget):
     def init_ui(self):
         self.layout = QVBoxLayout()
 
+        self.setup_heading()
+
         self.button_group = QGroupBox()
         self.layout.addWidget(self.button_group)
         self.v_box = QVBoxLayout()
