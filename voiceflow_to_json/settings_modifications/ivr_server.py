@@ -22,7 +22,7 @@ class IVRServerStatus:
 
     def check_ivr_status(self):
         try:
-            ivr_container = self.client.containers.get(ivr_const.DOCKER_CONTAINER_NAME)
+            ivr_container = self.client.containers.get("gp_ivr")
         except:
             return "build"
 
