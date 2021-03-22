@@ -13,6 +13,7 @@ import pysndfile
 import soundfile as sf
 from pocketsphinx import AudioFile, get_model_path
 from threading import Thread
+import speech_to_text_constants as constants
 
 
 class AsteriskSpeechToText:
@@ -186,17 +187,17 @@ class AsteriskSpeechToText:
                 config = {
                         'lm': False,
                         'audio_file': File,
-                        'hmm': "/var/lib/asterisk/agi-bin/cmusphinx-en-us-8khz-5.2",
+                        'hmm': constants.POCKET_SPHINX_MODEL_FILEPATH,
                         'dict': os.path.join(model_path, 'cmudict-en-us.dict')
                 }
 
                 yes_result = 0
                 no_result = 0
-                audio = AudioFile(kws="/var/lib/asterisk/agi-bin/yes_words.list", **config)
+                audio = AudioFile(kws=constants.YES_WORDS_FILEPATH, **config)
                 for phrase in audio:
                         yes_result += 1
 
-                audio = AudioFile(kws="/var/lib/asterisk/agi-bin/no_words.list", **config)
+                audio = AudioFile(kws=constants.NO_WORDS_FILEPATH, **config)
                 for phrase in audio:
                         no_result += 1
                 os.remove(File)
@@ -232,7 +233,7 @@ class OutputYesNoResult:
                 self.output_result()
 
         def output_result(self):
-                FileNameTmp = "/var/lib/asterisk/agi-bin/TmpSpeechFile"
+                FileNameTmp = constants.TMP_SPEECH_FILE_PATH
                 stt = AsteriskSpeechToText(self.RAW_RATE, self.CHUNK, self.VOCAL_RANGE, self.THRESHOLD,
                                            self.TIMEOUT_SIGNAL, self.TIMEOUT_NO_SPEAKING, self.SHORT_NORMALISE,
                                            self.last_block, self.last_last_block)
@@ -249,7 +250,8 @@ class OutputYesNoResult:
                 stt.delete_audio_file(FileNameTmp)
 
 
-recogniser = OutputYesNoResult(8000, 1024, 75.0, 15, 160768, 16384, (1.0/32768.0), "", "")
+recogniser = OutputYesNoResult(constants.RAW_RATE, constants.CHUNK, constants.VOCAL_RANGE, constants.THRESHOLD,
+                               constants.TIMEOUT_SIGNAL, constants.TIMEOUT_NO_SPEAKING, constants.SHORT_NORMALISE, "", "")
 
 
 
