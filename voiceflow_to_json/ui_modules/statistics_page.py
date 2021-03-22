@@ -343,7 +343,7 @@ class StatsWidget(QWidget):
         labels = ['Successful IVR Calls', 'Dropped IVR Calls']
         explode = (0, 0.1)
 
-        ax.pie(percentages, explode=explode, labels=labels, autopct='%1.1f%%', textprops={'color': "w"},
+        ax.pie(percentages, explode=explode, labels=labels, autopct='%1.1f%%', textprops={'color': "k"},
                            shadow=True, startangle=-45)
         ax.axis('equal')
 
