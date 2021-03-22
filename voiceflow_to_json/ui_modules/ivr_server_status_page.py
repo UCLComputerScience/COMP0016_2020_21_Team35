@@ -109,7 +109,20 @@ class IvrServerStatusWidget(QWidget):
         self.ivr_status_icon.deleteLater()
         self.ivr_status_icon = None
 
-        if ivr_online:
+        if ivr_online == "build":
+            self.ivr_status_text = QLabel("Building")
+            self.status_layout.addWidget(self.ivr_status_text, alignment=Qt.AlignRight)
+
+            self.ivr_status_icon = QLabel()
+            ivr_status_pixmap = QPixmap(os.path.join(application_path, image_constants.BUILDING_ICON))
+            ivr_status_pixmap = ivr_status_pixmap.scaled(16, 16, Qt.KeepAspectRatio)
+            self.ivr_status_icon.setPixmap(ivr_status_pixmap)
+            self.status_layout.addWidget(self.ivr_status_icon, alignment=Qt.AlignRight)
+
+            self.turn_on_button.setEnabled(False)
+            self.turn_off_button.setEnabled(False)
+            self.ivr_server.build_and_run_ivr()
+        elif ivr_online:
             self.ivr_status_text = QLabel("Online")
             self.status_layout.addWidget(self.ivr_status_text, alignment=Qt.AlignRight)
 
