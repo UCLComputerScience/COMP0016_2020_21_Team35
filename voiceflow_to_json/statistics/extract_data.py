@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 import numpy as np
 import os
 import sys
-import constants.asterisk_filepath_constants as asterisk_constants
+import voiceflow_to_json.constants.asterisk_filepath_constants as asterisk_constants
 
 if getattr(sys, 'frozen', False):
     application_path = os.path.dirname(sys.executable)
