@@ -32,6 +32,7 @@ class HomePageWidget(QWidget):
 
         self.setup_ivr_status_button()
         self.setup_generate_ivr_button()
+        self.setup_add_recorded_voice_files_button()
         self.setup_analytics_button()
         self.setup_pstn_settings_button()
         self.setup_redirect_settings_button()
@@ -39,6 +40,8 @@ class HomePageWidget(QWidget):
         self.v_box.addWidget(self.ivr_status_button)
         self.v_box.addWidget(QLabel())
         self.v_box.addWidget(self.generate_ivr_button)
+        self.v_box.addWidget(QLabel())
+        self.v_box.addWidget(self.add_recorded_voice_files_button)
         self.v_box.addWidget(QLabel())
         self.v_box.addWidget(self.stats_button)
         self.v_box.addWidget(QLabel())
@@ -52,7 +55,7 @@ class HomePageWidget(QWidget):
         self.redirect_settings_button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
         redirect_settings_icon = QIcon(os.path.join(application_path, image_constants.REDIRECT_SETTINGS_ICON))
         self.redirect_settings_button.setIcon(redirect_settings_icon)
-        self.redirect_settings_button.setIconSize(QSize(64, 64))
+        self.redirect_settings_button.setIconSize(QSize(40, 40))
         self.redirect_settings_button.setToolTip(
             "Use This To: Update the numbers that users calling the IVR are redirected to")
 
@@ -61,7 +64,7 @@ class HomePageWidget(QWidget):
         self.pstn_settings_button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
         pstn_settings_icon = QIcon(os.path.join(application_path, image_constants.PSTN_SETTINGS_ICON))
         self.pstn_settings_button.setIcon(pstn_settings_icon)
-        self.pstn_settings_button.setIconSize(QSize(64, 64))
+        self.pstn_settings_button.setIconSize(QSize(40, 40))
         self.pstn_settings_button.setToolTip(
             "Use This To: Update your PSTN provider settings for your IVR (e.g. Twilio)")
 
@@ -70,15 +73,24 @@ class HomePageWidget(QWidget):
         self.stats_button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
         analytics_icon = QIcon(os.path.join(application_path, image_constants.ANALYTICS_ICON))
         self.stats_button.setIcon(analytics_icon)
-        self.stats_button.setIconSize(QSize(64, 64))
+        self.stats_button.setIconSize(QSize(40, 40))
         self.stats_button.setToolTip("Use This To: See Analytics about your currently running IVR")
+
+    def setup_add_recorded_voice_files_button(self):
+        self.add_recorded_voice_files_button = QPushButton('Add Recorded Voice Files to IVR', self)
+        self.add_recorded_voice_files_button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+        wav_icon = QIcon(os.path.join(application_path, image_constants.WAV_ICON))
+        self.add_recorded_voice_files_button.setIcon(wav_icon)
+        self.add_recorded_voice_files_button.setIconSize(QSize(40, 40))
+        self.add_recorded_voice_files_button.setToolTip(
+            "Use This To: Add your own recorded voice files to the IVR")
 
     def setup_generate_ivr_button(self):
         self.generate_ivr_button = QPushButton('Generate IVR', self)
         self.generate_ivr_button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
         ivr_icon = QIcon(os.path.join(application_path, image_constants.IVR_LOGO_ICON))
         self.generate_ivr_button.setIcon(ivr_icon)
-        self.generate_ivr_button.setIconSize(QSize(64, 64))
+        self.generate_ivr_button.setIconSize(QSize(40, 40))
         self.generate_ivr_button.setToolTip("Use This To: Turn a Voiceflow file or project into an IVR")
 
     def setup_ivr_status_button(self):
@@ -86,7 +98,7 @@ class HomePageWidget(QWidget):
         self.ivr_status_button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
         ivr_status_icon = QIcon(os.path.join(application_path, image_constants.SERVER_STATUS_ICON))
         self.ivr_status_button.setIcon(ivr_status_icon)
-        self.ivr_status_button.setIconSize(QSize(64, 64))
+        self.ivr_status_button.setIconSize(QSize(40, 40))
         self.ivr_status_button.setToolTip("Use This To: Turn the IVR server on or off and view the status")
 
     def setup_heading(self):
