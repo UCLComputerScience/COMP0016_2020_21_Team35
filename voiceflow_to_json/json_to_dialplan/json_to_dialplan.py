@@ -70,8 +70,3 @@ class Dialplan:
         self.create_incoming()
         self.create_ivr()
         self.reload_dialplan()
-
-# with open('/home/max/Documents/GP_IVR/voiceflow.json') as json_file:
-#     test_json = json.load(json_file)
-# test = Dialplan("/etc/asterisk/extensions.conf", test_json)
-# test.create_config()
