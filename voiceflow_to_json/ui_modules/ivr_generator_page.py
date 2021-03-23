@@ -34,7 +34,6 @@ class IvrGeneratorWidget(QWidget):
 
         self.setup_voiceflow_login_button()
         self.setup_downloaded_voiceflow_button()
-        self.setup_add_ivr_voicefiles_button()
 
         back_button_creator = BackButton()
         self.back_button = back_button_creator.create_back_button()
@@ -44,19 +43,9 @@ class IvrGeneratorWidget(QWidget):
         self.v_box.addWidget(QLabel())
         self.v_box.addWidget(self.json_file_button)
         self.v_box.addWidget(QLabel())
-        self.v_box.addWidget(self.add_voice_files_button)
-        self.v_box.addWidget(QLabel())
         self.v_box.addLayout(back_layout)
 
         self.setLayout(self.layout)
-
-    def setup_add_ivr_voicefiles_button(self):
-        self.add_voice_files_button = QPushButton("Add IVR Voice Files", self)
-        self.add_voice_files_button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
-        wav_icon = QIcon(os.path.join(application_path, image_constants.WAV_ICON))
-        self.add_voice_files_button.setIcon(wav_icon)
-        self.add_voice_files_button.setIconSize(QSize(64, 64))
-        self.add_voice_files_button.setToolTip("Use This To: Add your own WAV voice files to the IVR")
 
     def setup_downloaded_voiceflow_button(self):
         self.json_file_button = QPushButton('Use Downloaded Voiceflow File', self)
@@ -84,7 +73,7 @@ class IvrGeneratorWidget(QWidget):
 
         page_info1 = QLabel(
             "Our IVR Generator allows you to either use your Voiceflow credentials \nor a downloaded Voiceflow file to generate an IVR.")
-        page_info2 = QLabel("Voice files are automatically generated but can be added individually.")
+        page_info2 = QLabel("Speech files are automatically generated but can be added individually.")
 
         self.layout.addWidget(QLabel())
         self.layout.addWidget(heading)
