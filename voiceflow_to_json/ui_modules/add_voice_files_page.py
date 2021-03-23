@@ -80,7 +80,7 @@ class AddVoiceFilesWidget(QWidget):
         rules_font.setItalic(True)
 
         self.layout.addWidget(QLabel())
-        heading = QLabel("Add IVR Voice Files:")
+        heading = QLabel("Add Recorded Voice Files to IVR:")
         heading.setFont(heading_font)
 
         page_info = QLabel(
