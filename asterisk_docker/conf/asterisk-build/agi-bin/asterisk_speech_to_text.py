@@ -39,7 +39,6 @@ class AsteriskSpeechToText:
                 file = os.fdopen(FD, 'rb')
                 return file
 
-
         def wait_to_start(self):
                 env = {}
                 while 1:
@@ -58,7 +57,7 @@ class AsteriskSpeechToText:
                                 env[key] = data
                 return env
 
-        def PlayStream(self, params):
+        def play_stream(self, params):
                 sys.stderr.write("STREAM FILE %s \"\"\n" % str(params))
                 sys.stderr.flush()
                 sys.stdout.write("STREAM FILE %s \"\"\n" % str(params))
@@ -80,14 +79,14 @@ class AsteriskSpeechToText:
                 else:
                         print("The file " + FileNameTmp + " does not exist")
 
-        def Filter(self, samps):
+        def filter(self, samps):
                 FC = 0.05 / (0.5 * self.RAW_RATE)
                 N = 200
                 a = 1
                 b = firwin(N, cutoff=FC, window='hamming')
                 return lfilter(b, a, samps)
 
-        def Pitch(self, signal):
+        def pitch(self, signal):
                 if sys.version_info < (2, 6):
                         crossing = []
                         for s in signal:
@@ -124,12 +123,10 @@ class AsteriskSpeechToText:
                                 return True;
                         else:
                                 return False;
-
-
                 else:
                         return False;
 
-        def RecordSpeech(self, file):
+        def record_speech(self, file):
                 all = []
                 for s in self.last_last_block:
                         all.append(s)
@@ -163,11 +160,11 @@ class AsteriskSpeechToText:
                         # Input Real-time Data Raw Audio from Asterisk
                         raw_samps = file.read(self.CHUNK)
                         samps = np.fromstring(raw_samps, dtype=np.int16)
-                        samps2 = self.Filter(samps)
-                        Frequency = self.Pitch(samps2)
+                        samps2 = self.filter(samps)
+                        frequency = self.pitch(samps2)
                         rms_value = self.rms(samps)
                         signal = self.CHUNK;
-                        if (rms_value > self.THRESHOLD) and (Frequency > self.VOCAL_RANGE):
+                        if (rms_value > self.THRESHOLD) and (frequency > self.VOCAL_RANGE):
                                 silence = False
                                 self.last_last_block = self.last_block
                                 self.last_block = samps
@@ -242,7 +239,7 @@ class OutputYesNoResult:
                 stt.write_output_debug(env)
                 sys.stdout.flush()
                 stt.waiting_for_speech(file)
-                array = stt.RecordSpeech(file)
+                array = stt.record_speech(file)
 
                 FileNameTmp = FileNameTmp + stt.agi_arg.split("/")[1] + ".wav"
                 stt.create_audio_file(FileNameTmp, array)
