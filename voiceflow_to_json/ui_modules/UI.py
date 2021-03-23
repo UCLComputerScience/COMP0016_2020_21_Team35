@@ -73,10 +73,10 @@ class ProgramUi(QMainWindow):
         self.initUI()
 
     def initUI(self):
-        exitAct = QAction(QIcon('exit.png'), '&Exit', self)
-        exitAct.setShortcut('Ctrl+Q')
-        exitAct.setStatusTip('Exit application')
-        exitAct.triggered.connect(qApp.quit)
+        exit_act = QAction(QIcon('exit.png'), '&Exit', self)
+        exit_act.setShortcut('Ctrl+Q')
+        exit_act.setStatusTip('Exit application')
+        exit_act.triggered.connect(qApp.quit)
 
         home_page_action = QAction("Home Page", self)
         home_page_action.triggered.connect(lambda: self.home_page_setup())
@@ -84,8 +84,8 @@ class ProgramUi(QMainWindow):
         ivr_server_status_action = QAction("IVR Server Status", self)
         ivr_server_status_action.triggered.connect(lambda : self.ivr_server_status_setuo())
 
-        login_action = QAction("Generate IVR", self)
-        login_action.triggered.connect(lambda: self.ivr_generator_setup())
+        generate_ivr_action = QAction("Generate IVR", self)
+        generate_ivr_action.triggered.connect(lambda: self.ivr_generator_setup())
 
         pstn_settings_action = QAction("SIP Trunk Settings", self)
         pstn_settings_action.triggered.connect(lambda: self.pstn_settings_setup())
@@ -96,7 +96,7 @@ class ProgramUi(QMainWindow):
         stats_action = QAction("Analytics", self)
         stats_action.triggered.connect(lambda: self.stats_setup())
 
-        add_voice_files_action = QAction("Add IVR Voice Files", self)
+        add_voice_files_action = QAction("Add Recorded Voice Files", self)
         add_voice_files_action.triggered.connect(lambda: self.add_voice_files_setup())
 
         self.statusBar()
@@ -105,19 +105,19 @@ class ProgramUi(QMainWindow):
         fileMenu = menubar.addMenu('&Menu')
         fileMenu.addAction(home_page_action)
         fileMenu.addAction(ivr_server_status_action)
-        fileMenu.addAction(login_action)
+        fileMenu.addAction(generate_ivr_action)
         fileMenu.addAction(add_voice_files_action)
         fileMenu.addAction(stats_action)
         fileMenu.addAction(pstn_settings_action)
         fileMenu.addAction(redirect_settings_action)
-        fileMenu.addAction(exitAct)
+        fileMenu.addAction(exit_act)
 
         self.setGeometry(200, 200, 200, 200)
 
         self.home_page_setup()
 
     def home_page_setup(self):
-        self.resize(600, 800)
+        self.resize(600, 700)
         self.home_page = HomePageWidget()
         self.setCentralWidget(self.home_page)
         self.setWindowTitle("Home")
@@ -132,7 +132,7 @@ class ProgramUi(QMainWindow):
         self.ivr_server_status_events()
 
     def ivr_generator_setup(self):
-        self.resize(600, 600)
+        self.resize(600, 500)
         self.ivr_generator = IvrGeneratorWidget()
         self.setCentralWidget(self.ivr_generator)
         self.setWindowTitle("IVR Generation")
@@ -149,7 +149,7 @@ class ProgramUi(QMainWindow):
         self.add_voice_files_scroll.setWidget(self.add_voice_files)
 
         self.setCentralWidget(self.add_voice_files_scroll)
-        self.setWindowTitle("Add IVR Voice Files")
+        self.setWindowTitle("Add Recorded Voice Files to IVR")
         self.add_voice_files_events()
 
     def stats_setup(self):
@@ -163,7 +163,7 @@ class ProgramUi(QMainWindow):
         self.resize(550, 450)
         self.pstn_settings = PstnSettingsWidget()
         self.setCentralWidget(self.pstn_settings)
-        self.setWindowTitle("Sip Trunk Settings")
+        self.setWindowTitle("SIP Trunk Settings")
         self.pstn_settings_events()
 
     def redirect_settings_setup(self, page):
@@ -245,6 +245,10 @@ class ProgramUi(QMainWindow):
         self.home_page.generate_ivr_button.clicked.connect(lambda: self.resize(100, 100))
         self.home_page.generate_ivr_button.clicked.connect(lambda: self.ivr_generator_setup())
 
+        self.home_page.add_recorded_voice_files_button.clicked.connect(lambda: self.home_page.close())
+        self.home_page.add_recorded_voice_files_button.clicked.connect(lambda: self.resize(100, 100))
+        self.home_page.add_recorded_voice_files_button.clicked.connect(lambda: self.add_voice_files_setup())
+
         self.home_page.pstn_settings_button.clicked.connect(lambda: self.home_page.close())
         self.home_page.pstn_settings_button.clicked.connect(lambda: self.resize(100, 100))
         self.home_page.pstn_settings_button.clicked.connect(lambda: self.pstn_settings_setup())
@@ -275,10 +279,6 @@ class ProgramUi(QMainWindow):
         self.ivr_generator.json_file_button.clicked.connect(lambda: self.resize(100, 100))
         self.ivr_generator.json_file_button.clicked.connect(lambda: self.choose_voiceflow_file_setup())
 
-        self.ivr_generator.add_voice_files_button.clicked.connect(lambda: self.ivr_generator.close())
-        self.ivr_generator.add_voice_files_button.clicked.connect(lambda: self.resize(100, 100))
-        self.ivr_generator.add_voice_files_button.clicked.connect(lambda: self.add_voice_files_setup())
-
         self.ivr_generator.back_button.clicked.connect(lambda: self.ivr_generator.close())
         self.ivr_generator.back_button.clicked.connect(lambda: self.resize(100, 100))
         self.ivr_generator.back_button.clicked.connect(lambda: self.home_page_setup())
@@ -291,7 +291,7 @@ class ProgramUi(QMainWindow):
 
         self.add_voice_files.back_button.clicked.connect(lambda: self.add_voice_files.close())
         self.add_voice_files.back_button.clicked.connect(lambda: self.resize(100, 100))
-        self.add_voice_files.back_button.clicked.connect(lambda: self.ivr_generator_setup())
+        self.add_voice_files.back_button.clicked.connect(lambda: self.home_page_setup())
 
     def pstn_settings_events(self):
         self.pstn_settings.add_ip_address_button.clicked.connect(lambda: self.pstn_settings.add_ip_address())
