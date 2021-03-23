@@ -1,7 +1,5 @@
 import docker
-import constants.docker_constants as ivr_const
-import sys
-import os
+import voiceflow_to_json.constants.docker_constants as ivr_const
 
 class IVRServerStatus:
     def __init__(self):
@@ -22,7 +20,7 @@ class IVRServerStatus:
 
     def check_ivr_status(self):
         try:
-            ivr_container = self.client.containers.get("gp_ivr")
+            ivr_container = self.client.containers.get(ivr_const.DOCKER_CONTAINER_NAME)
         except:
             return "build"
 
