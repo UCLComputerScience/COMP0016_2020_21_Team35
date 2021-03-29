@@ -50,4 +50,4 @@ You will then have a deb package that can be installed on an Ubuntu PC or server
 
 # Using or Deploying the Program
 
-If you want more information on how to use the system or how to deploy the system on an Ubuntu PC or Linode server, please refer to out deployment_guide.pdf and user_guide.pdf in the repository.
+If you want more information on how to use the system or how to deploy the system on an Ubuntu PC or Linode server, please refer to our "GP IVR User Guide.pdf" and "GP IVR Deployment Guide.pdf" in the repository.
