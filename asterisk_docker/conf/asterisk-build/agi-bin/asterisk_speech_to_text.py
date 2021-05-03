@@ -15,7 +15,7 @@ from pocketsphinx import AudioFile, get_model_path
 from threading import Thread
 import speech_to_text_constants as constants
 
-
+# Record and translate speech to text from Asterisk call
 class AsteriskSpeechToText:
         def __init__(self, raw_rate, chunk, vocal_range, threshold, timeout_signal,
                      timeout_no_speaking, short_normalise, last_block, last_last_block):
@@ -31,6 +31,7 @@ class AsteriskSpeechToText:
                 self.last_block = last_block
                 self.last_last_block = last_last_block
 
+        # Open the stream, allowing us to record call speech
         def open_asterisk_stream(self):
                 # File Descriptor delivery in Asterisk
                 FD = 3
@@ -39,6 +40,7 @@ class AsteriskSpeechToText:
                 file = os.fdopen(FD, 'rb')
                 return file
 
+        # Wait for Asterisk console, so we can start recording
         def wait_to_start(self):
                 env = {}
                 while 1:
@@ -63,6 +65,7 @@ class AsteriskSpeechToText:
                 sys.stdout.write("STREAM FILE %s \"\"\n" % str(params))
                 sys.stdout.flush()
 
+        # Write Asterisk debugging to console
         def write_output_debug(self, env):
                 for key in env.keys():
                         sys.stderr.write(" -- %s = %s\n" % (key, env[key]))
@@ -98,6 +101,7 @@ class AsteriskSpeechToText:
                 f0 = round(len(index) * self.RAW_RATE / (2 * np.prod(len(signal))))
                 return f0
 
+        # root mean square of sample
         def rms(self, shorts):
                 rms2 = 0
                 count = len(shorts) / 2
@@ -108,6 +112,7 @@ class AsteriskSpeechToText:
                         rms2 = math.pow(sum_squares / count, 0.5)
                 return rms2 * 1000
 
+        # Check if caller is speaking
         def speaking(self, data):
                 rms_value = self.rms(data)
                 if rms_value > self.THRESHOLD:
@@ -115,6 +120,7 @@ class AsteriskSpeechToText:
                 else:
                         return False
 
+        # Detect if voice activity
         def VAD(self, SumFrequency, data2):
                 AVGFrequency = SumFrequency / (self.TIMEOUT_NO_SPEAKING + 1);
                 if AVGFrequency > self.VOCAL_RANGE / 2:
@@ -177,6 +183,7 @@ class AsteriskSpeechToText:
                                 sys.stdout.flush()
                                 sys.exit()
 
+        # Conduct speech to text, send result to Asterisk through channel variable
         def send_speech(self, File):
                 model_path = get_model_path()
                 y, s = librosa.load(File, sr=16000)
@@ -212,7 +219,7 @@ class AsteriskSpeechToText:
                 sys.stdout.write("EXEC " + "\"" + "NOOP" + "\" \"" "%s \n" % str(result))
                 sys.stdout.flush()
 
-
+# Complete who speech to text process, using key values for Asterisk audio
 class OutputYesNoResult:
         def __init__(self, raw_rate, chunk, vocal_range, threshold, timeout_signal,
                      timeout_no_speaking, short_normalise, last_block, last_last_block):
